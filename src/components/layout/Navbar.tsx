@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { scrollToPosition } from '../../lib/smoothScroll';
+
+const EMAIL_ADDRESS = 'frankglen62@gmail.com';
 
 const navLinks = [
   { label: 'Home', href: '#home' },
@@ -7,134 +10,107 @@ const navLinks = [
   { label: 'Services', href: '#services' },
   { label: 'My Project', href: '#portfolio' },
   { label: 'Skills', href: '#skills' },
+  { label: 'Contact', href: '#contact' },
 ];
 
-interface NavbarProps {
-  isVisible: boolean;
+export interface NavbarProps {
+  isVisible?: boolean;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ isVisible }) => {
+export const Navbar: React.FC<NavbarProps> = ({ isVisible = true }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  useEffect(() => {
-    if (isVisible) return;
-    const timer = window.setTimeout(() => setMobileOpen(false), 0);
-    return () => window.clearTimeout(timer);
-  }, [isVisible]);
-
-  useEffect(() => {
-    if (!mobileOpen) return;
-
-    const previousOverflow = document.body.style.overflow;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMobileOpen(false);
-    };
-
-    document.body.style.overflow = 'hidden';
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [mobileOpen]);
+  const logoSrc = `${import.meta.env.BASE_URL}logo.png`;
 
   return (
     <>
       <header
-        data-hero-nav
-        aria-hidden={!isVisible}
-        className={`fixed top-0 left-0 right-0 z-50 py-5 bg-transparent text-white transition-[opacity,transform] duration-300 ${
-          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'
+        className={`fixed top-0 left-0 right-0 z-50 flex h-[64px] items-center justify-between px-5 sm:h-[72px] sm:px-10 md:px-14 pointer-events-none text-white transition-opacity duration-300 ${
+          isVisible ? 'opacity-100' : 'opacity-100'
         }`}
       >
-        <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between px-6 md:px-10 lg:px-12">
+        {/* Top-Left: Signature Logo PNG matching jeffmilanes.com */}
+        <a
+          href="#home"
+          className="pointer-events-auto flex items-center gap-2.5 transition-opacity hover:opacity-80 focus:outline-none"
+          aria-label="Frank Martin Home"
+        >
+          <img
+            src={logoSrc}
+            alt="Frank"
+            className="h-7 sm:h-9 md:h-11 w-auto object-contain filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
+          />
+        </a>
+
+        {/* Top-Right: Email matching jeffmilanes.com */}
+        <div className="flex items-center gap-4 pointer-events-auto">
           <a
-            href="#home"
-            className="font-heading italic text-2xl md:text-[26px] text-white"
+            href={`mailto:${EMAIL_ADDRESS}`}
+            className="hidden sm:inline-block font-mono text-[10px] md:text-[10.5px] font-normal uppercase tracking-[0.14em] text-white transition-opacity duration-200 hover:opacity-100 focus:outline-none"
+            style={{ opacity: 0.72 }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.72')}
+            aria-label={`Send email to ${EMAIL_ADDRESS}`}
           >
-            Frank.
+            {EMAIL_ADDRESS}
           </a>
-
-          <nav className="hidden md:flex items-center gap-8 lg:gap-10">
-            {navLinks.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                className="py-2 font-body text-[14px] font-medium text-white/70 transition-colors duration-300 hover:text-white"
-              >
-                {link.label}
-              </a>
-            ))}
-          </nav>
-
-          <motion.a
-            href="#contact"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.97 }}
-            className="hidden md:inline-flex font-body font-semibold text-[14px] rounded-full px-7 py-2.5 cursor-pointer bg-white/10 text-white hover:bg-white hover:text-black transition-colors duration-300 border border-white/10"
-          >
-            Contact
-          </motion.a>
 
           {/* Mobile Menu Toggle */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="md:hidden w-10 h-10 flex flex-col items-center justify-center gap-1.5 focus:outline-none"
+            className="sm:hidden flex h-10 w-10 flex-col items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/70"
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileOpen}
-            aria-controls="mobile-navigation"
           >
             <motion.span
               animate={mobileOpen ? { rotate: 45, y: 6 } : { rotate: 0, y: 0 }}
-              className="w-6 h-[2px] block bg-white"
+              className="h-[1.5px] w-5 block bg-white"
             />
             <motion.span
               animate={mobileOpen ? { opacity: 0 } : { opacity: 1 }}
-              className="w-6 h-[2px] block bg-white"
+              className="h-[1.5px] w-5 block bg-white"
             />
             <motion.span
               animate={mobileOpen ? { rotate: -45, y: -6 } : { rotate: 0, y: 0 }}
-              className="w-6 h-[2px] block bg-white"
+              className="h-[1.5px] w-5 block bg-white"
             />
           </button>
         </div>
       </header>
+
+      {/* Mobile Drawer */}
       <AnimatePresence>
-        {mobileOpen && isVisible && (
+        {mobileOpen && (
           <motion.div
-            id="mobile-navigation"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-40 bg-dark pt-24 px-8 flex flex-col justify-between pb-10"
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-40 bg-black/95 backdrop-blur-xl pt-24 px-8 flex flex-col justify-between pb-10"
           >
-            <nav className="flex flex-col gap-2 mt-8" aria-label="Mobile navigation">
-              {navLinks.map((link, i) => (
-                <motion.a
+            <nav className="flex flex-col gap-3 mt-6">
+              {navLinks.map((link) => (
+                <a
                   key={link.label}
                   href={link.href}
-                  onClick={() => setMobileOpen(false)}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.05 * i }}
-                  className="font-display font-bold text-3xl text-white hover:text-gray-light py-3 border-b border-white/5 transition-colors"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setMobileOpen(false);
+                    const target = document.querySelector(link.href);
+                    if (target) scrollToPosition(target.getBoundingClientRect().top + window.scrollY);
+                  }}
+                  className="font-display font-extrabold text-3xl uppercase tracking-[-0.05em] text-white hover:text-white/70 py-2 border-b border-white/5 transition-colors"
                 >
                   {link.label}
-                </motion.a>
+                </a>
               ))}
             </nav>
-            <motion.a
-              href="#contact"
-              onClick={() => setMobileOpen(false)}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="mt-10 inline-flex items-center justify-center bg-white text-dark font-body font-semibold text-sm rounded-full py-4 cursor-pointer hover:bg-white/90 transition-colors w-full text-center"
+
+            <a
+              href={`mailto:${EMAIL_ADDRESS}`}
+              className="font-mono text-xs tracking-[0.16em] text-white/70 hover:text-white uppercase text-center py-3 transition-opacity duration-200"
             >
-              Contact
-            </motion.a>
+              {EMAIL_ADDRESS}
+            </a>
           </motion.div>
         )}
       </AnimatePresence>

@@ -43,7 +43,10 @@ function layoutConfigPlugin(): Plugin {
               const parsed = JSON.parse(body);
               const pretty = JSON.stringify(parsed, null, 2);
               fs.writeFileSync(srcPath(), pretty);
-              fs.writeFileSync(publicPath(), pretty);
+              // Do not touch the public copy during an editor save. Vite
+              // watches public assets and would full-reload the page, closing
+              // the editor immediately after a successful save. `buildStart`
+              // syncs this copy from the source file before every build.
               res.setHeader('Content-Type', 'application/json');
               res.statusCode = 200;
               res.end(JSON.stringify({ success: true }));
@@ -57,6 +60,15 @@ function layoutConfigPlugin(): Plugin {
           next();
         }
       });
+    },
+    // layout.json is authoring data, not application code. Writing it from
+    // the editor must not invalidate the React module graph: doing so tears
+    // down the editor immediately after a successful save and makes it look
+    // as if the change was lost. The next full reload still reads the file.
+    handleHotUpdate(ctx) {
+      const changed = path.resolve(ctx.file);
+      if (changed === srcPath() || changed === publicPath()) return [];
+      return undefined;
     },
   };
 }

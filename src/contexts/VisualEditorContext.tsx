@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import savedLayout from '../config/layout.json';
 
 /* eslint-disable react-refresh/only-export-components */
@@ -61,17 +61,17 @@ export type SaveStatus = 'idle' | 'file' | 'local' | 'error';
 export const FALLBACK: LayoutConfig = {
   characterImage: { x: 78, y: 374, scale: 1.45, opacity: 1, rotation: 0, width: 'auto', height: '100%', zIndex: 20 },
   availableBadge: { x: -22, y: 4, scale: 1, opacity: 1, rotation: 0, zIndex: 30 },
-  specializationText: { x: -10, y: 99, scale: 1, fontSize: '14px', fontWeight: 500, letterSpacing: '0em', lineHeight: '1.625', opacity: 1, color: '#e0e0e0', rotation: 0, zIndex: 30 },
-  iAmFrankText: { x: -27, y: 28, scale: 1, fontSize: 'clamp(3rem,8vw,7.5rem)', fontWeight: 900, letterSpacing: '-0.02em', lineHeight: '0.88', opacity: 1, color: '#e0e0e0', rotation: 0, zIndex: 10 },
-  roleTitleText: { x: 0, y: 0, scale: 1, fontSize: 'clamp(1.2rem,3.5vw,3rem)', fontWeight: 900, letterSpacing: '-0.01em', lineHeight: '1.05', opacity: 1, color: '#e0e0e0', rotation: 0, zIndex: 10 },
-  aboutTitle: { x: 0, y: 0, scale: 1, fontSize: 'clamp(2.5rem,5vw,4.5rem)', fontWeight: 700, letterSpacing: '0em', lineHeight: '1', opacity: 1, color: '#ffffff', rotation: 0 },
+  specializationText: { x: -10, y: 99, scale: 1, fontSize: '16px', fontWeight: 800, letterSpacing: '-0.05em', lineHeight: '0.95', opacity: 1, color: '#ffffff', rotation: 0, zIndex: 30 },
+  iAmFrankText: { x: -27, y: 28, scale: 1, fontSize: 'clamp(3rem,8vw,7.5rem)', fontWeight: 800, letterSpacing: '-0.07em', lineHeight: '0.88', opacity: 1, color: '#e0e0e0', rotation: 0, zIndex: 10 },
+  roleTitleText: { x: 0, y: 0, scale: 1, fontSize: 'clamp(1.2rem,3.5vw,3rem)', fontWeight: 800, letterSpacing: '-0.07em', lineHeight: '0.9', opacity: 1, color: '#e0e0e0', rotation: 0, zIndex: 10 },
+  aboutTitle: { x: 0, y: 0, scale: 1, fontSize: 'clamp(2.5rem,5vw,4.5rem)', fontWeight: 800, letterSpacing: '-0.07em', lineHeight: '0.9', opacity: 1, color: '#ffffff', rotation: 0 },
 
   characterImageMobile: { x: -6, y: 892, scale: 3.55, opacity: 1, rotation: 0, width: 'auto', height: '100%', zIndex: 20 },
   availableBadgeMobile: { x: -3, y: -18, scale: 1, opacity: 1, rotation: 0, zIndex: 30 },
-  specializationTextMobile: { x: 0, y: 0, scale: 1, fontSize: '8.5px', fontWeight: 500, letterSpacing: '0em', lineHeight: '1.35', opacity: 1, color: '#e0e0e0', rotation: 0, zIndex: 30 },
-  iAmFrankTextMobile: { x: 19, y: 15, scale: 1.35, fontSize: 'clamp(2.35rem,12vw,3.15rem)', fontWeight: 900, letterSpacing: '0em', lineHeight: '0.88', opacity: 1, color: '#e0e0e0', rotation: 0, zIndex: 10 },
-  roleTitleTextMobile: { x: -6, y: 21, scale: 1.1, fontSize: 'clamp(1.05rem,5.1vw,1.35rem)', fontWeight: 700, letterSpacing: '0em', lineHeight: '1.02', opacity: 1, color: '#e0e0e0', rotation: 0, zIndex: 10 },
-  aboutTitleMobile: { x: 0, y: 0, scale: 1, fontSize: 'clamp(2.85rem,12.9vw,3rem)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: '0.92', opacity: 1, color: '#1e1e1e', rotation: 0 },
+  specializationTextMobile: { x: 0, y: 0, scale: 1, fontSize: '10px', fontWeight: 800, letterSpacing: '-0.05em', lineHeight: '0.95', opacity: 1, color: '#ffffff', rotation: 0, zIndex: 30 },
+  iAmFrankTextMobile: { x: 19, y: 15, scale: 1.35, fontSize: 'clamp(2.35rem,12vw,3.15rem)', fontWeight: 800, letterSpacing: '-0.07em', lineHeight: '0.88', opacity: 1, color: '#e0e0e0', rotation: 0, zIndex: 10 },
+  roleTitleTextMobile: { x: -6, y: 21, scale: 1.1, fontSize: 'clamp(1.05rem,5.1vw,1.35rem)', fontWeight: 800, letterSpacing: '-0.07em', lineHeight: '0.9', opacity: 1, color: '#e0e0e0', rotation: 0, zIndex: 10 },
+  aboutTitleMobile: { x: 0, y: 0, scale: 1, fontSize: 'clamp(2.85rem,12.9vw,3rem)', fontWeight: 800, letterSpacing: '-0.07em', lineHeight: '0.9', opacity: 1, color: '#1e1e1e', rotation: 0 },
 };
 
 /**
@@ -83,6 +83,20 @@ export const FALLBACK: LayoutConfig = {
 export const SAVED_LAYOUT: LayoutConfig = { ...FALLBACK, ...(savedLayout as LayoutConfig) };
 
 const LS_KEY = 'frankportfolio-layout-v2';
+
+const stableJson = (value: unknown): string => {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, child]) => `${JSON.stringify(key)}:${stableJson(child)}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
+};
+
+const layoutsEqual = (expected: LayoutConfig, actual: unknown): actual is LayoutConfig =>
+  stableJson(expected) === stableJson(actual);
 
 /**
  * The layout to render on the very first frame — nothing is awaited.
@@ -126,6 +140,7 @@ interface VisualEditorContextValue {
   saveLayout: () => Promise<void>;
   isSaving: boolean;
   saveStatus: SaveStatus;
+  savedLayoutJson: string | null;
   /** Kept for the hero: the layout is known synchronously, so always true. */
   configLoaded: boolean;
 }
@@ -145,6 +160,8 @@ export const VisualEditorProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [registry, setRegistry] = useState<Record<string, RegisteredElement>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [savedLayoutJson, setSavedLayoutJson] = useState<string | null>(null);
+  const layoutRevision = useRef(0);
 
   /* The dev server is the one place layout.json can change without a rebuild,
      so only a dev build asks for a fresher copy — and only after the paint. */
@@ -152,9 +169,16 @@ export const VisualEditorProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!import.meta.env.DEV) return;
     let cancelled = false;
 
-    fetch('/api/layout-config')
+    const requestRevision = layoutRevision.current;
+    fetch('/api/layout-config', { cache: 'no-store' })
       .then(res => (res.ok ? res.json() : Promise.reject(new Error('no dev server'))))
-      .then(data => { if (!cancelled) setLayout({ ...SAVED_LAYOUT, ...data }); })
+      .then(data => {
+        // Never let a slow first-load request overwrite an edit made while it
+        // was in flight. The editor remains the source of truth once touched.
+        if (!cancelled && layoutRevision.current === requestRevision) {
+          setLayout({ ...SAVED_LAYOUT, ...data });
+        }
+      })
       .catch(() => { /* editing against a preview build — the baked layout stands */ });
 
     return () => { cancelled = true; };
@@ -177,6 +201,7 @@ export const VisualEditorProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, []);
 
   const updateProps = useCallback((id: string, patch: Partial<ElementConfig>) => {
+    layoutRevision.current += 1;
     setLayout(prev => ({ ...prev, [id]: { ...(prev[id] ?? { x: 0, y: 0 }), ...patch } }));
   }, []);
 
@@ -187,11 +212,13 @@ export const VisualEditorProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const resetElement = useCallback((id: string) => {
     const defaults = FALLBACK[id];
     if (!defaults) return;
+    layoutRevision.current += 1;
     setLayout(prev => ({ ...prev, [id]: { ...defaults } }));
   }, []);
 
   const resetAll = useCallback(() => {
     if (!confirm('Reset every element on both canvases back to the factory layout?')) return;
+    layoutRevision.current += 1;
     setLayout({ ...FALLBACK });
     try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
   }, []);
@@ -199,12 +226,15 @@ export const VisualEditorProvider: React.FC<{ children: React.ReactNode }> = ({ 
   /**
    * Two very different outcomes used to both report "Saved!":
    *
-   *   'file'  — the dev server wrote src/config/layout.json + public/layout.json.
-   *             Permanent: survives a new browser, another device, a deploy.
+   *   'file'  — the dev server wrote src/config/layout.json and verified it by
+   *             reading the persisted file back. Permanent after the next build.
    *   'local' — only this browser's localStorage took it, which is what happens
    *             against `vite preview` or a static host (e.g. from a phone).
    */
   const saveLayout = useCallback(async () => {
+    // Keep the exact snapshot sent by this save available for sharing, even
+    // after more edits or when the browser cannot persist it.
+    setSavedLayoutJson(JSON.stringify(layout, null, 2));
     setIsSaving(true);
     setSaveStatus('idle');
 
@@ -224,7 +254,14 @@ export const VisualEditorProvider: React.FC<{ children: React.ReactNode }> = ({ 
       });
       // A static host answers unknown paths with index.html and a 200, so
       // require a real JSON acknowledgement rather than an OK status.
-      storedToFile = res.ok && (await res.json().catch(() => null))?.success === true;
+      const acknowledgement = res.ok ? await res.json().catch(() => null) : null;
+      if (acknowledgement?.success === true) {
+        // Read the exact bytes back through the dev server. A green status is
+        // only honest when the file now contains the complete layout we sent.
+        const verify = await fetch('/api/layout-config', { cache: 'no-store' });
+        const persisted = verify.ok ? await verify.json().catch(() => null) : null;
+        storedToFile = verify.ok && layoutsEqual(layout, persisted);
+      }
     } catch {
       /* no dev server reachable — localStorage is all we have */
     }
@@ -238,11 +275,11 @@ export const VisualEditorProvider: React.FC<{ children: React.ReactNode }> = ({ 
     layout, setLayout, updateProp, updateProps, resetElement, resetAll,
     editMode, setEditMode, selectedId, setSelectedId,
     registry, register, unregister,
-    saveLayout, isSaving, saveStatus, configLoaded: true,
+    saveLayout, isSaving, saveStatus, savedLayoutJson, configLoaded: true,
   }), [
     layout, updateProp, updateProps, resetElement, resetAll,
     editMode, selectedId, registry, register, unregister,
-    saveLayout, isSaving, saveStatus,
+    saveLayout, isSaving, saveStatus, savedLayoutJson,
   ]);
 
   return (

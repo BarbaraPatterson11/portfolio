@@ -1,167 +1,110 @@
-import React, { useRef } from 'react';
-import { Camera, Clock3, Mail, MapPin, Play, Send, Sparkles } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { ScrollReveal } from '../components/animations/ScrollReveal';
+import React, { useRef, useState } from 'react';
+import { motion, AnimatePresence, useInView } from 'framer-motion';
 
-const emailAddress = 'agnesann@email.com';
-
-const contactDetails = [
-  {
-    label: 'Mail me',
-    value: emailAddress,
-    href: `mailto:${emailAddress}`,
-    icon: Mail,
-  },
-  {
-    label: 'Location',
-    value: 'Philippines',
-    icon: MapPin,
-  },
-  {
-    label: 'Availability',
-    value: 'Remote · Worldwide',
-    icon: Clock3,
-  },
-];
-
-const socials = [
-  { name: 'Instagram', url: 'https://www.instagram.com/fnkgln/?hl=en', icon: Camera },
-  { name: 'TikTok', url: 'https://www.tiktok.com/@itzyearl', icon: Send },
-  { name: 'YouTube', url: 'https://www.youtube.com/@TunogTriviaPH', icon: Play },
-];
+const EMAIL_ADDRESS = 'frankglen62@gmail.com';
 
 export const Contact: React.FC = () => {
-  const sectionRef = useRef<HTMLElement>(null);
+  const [copied, setCopied] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const headlineVisible = useInView(headingRef, { amount: 0.8 });
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const subject = String(data.get('subject') || 'Portfolio inquiry');
-    const name = String(data.get('name') || 'Visitor');
-    const senderEmail = String(data.get('email') || '');
-    const message = String(data.get('message') || '');
-    const body = `Name: ${name}\nEmail: ${senderEmail}\n\n${message}`;
-    window.location.href = `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(EMAIL_ADDRESS);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback
+    }
   };
 
   return (
-    <section id="contact" ref={sectionRef} className="relative overflow-hidden bg-[#0c0c0c] py-16 text-white md:py-24">
-      {/* Gradient transition from previous section (black to #0c0c0c) */}
-      <div className="absolute top-0 left-0 w-full h-16 bg-gradient-to-b from-black to-[#0c0c0c] pointer-events-none z-0" />
-      <div className="relative z-10 mx-auto grid w-full max-w-6xl grid-cols-1 gap-12 px-6 md:px-10 lg:grid-cols-[0.72fr_1.55fr] lg:gap-14">
-        <ScrollReveal delay={0.05} className="flex flex-col justify-between">
-          <div>
-            <p className="mb-7 font-ui text-[11px] font-semibold uppercase tracking-[0.18em] text-white/82">
-              Contact info
+    <section
+      id="contact"
+      className="mobile-seamless-section relative flex min-h-[calc(100*var(--vh,1vh))] w-full flex-col justify-between overflow-hidden bg-black text-white px-6 py-[72px] pb-[76px] md:px-14"
+      aria-labelledby="contact-heading"
+    >
+      {/* Top / Main Contact Copy Block */}
+      <div className="contact-main-copy relative z-10 flex flex-1 flex-col items-center justify-center py-6 sm:py-8">
+        <div className="flex flex-col items-center text-center">
+          {/* Headline Stack */}
+          <div className="inline-block text-left">
+            <p className="font-mono text-[11px] font-normal uppercase tracking-[2.42px] text-[#aaa]">
+              Contact
             </p>
 
-            <div className="space-y-7">
-              {contactDetails.map(({ label, value, href, icon: Icon }) => {
-                const content = (
-                  <>
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-white/8 bg-white/[0.04] text-white/76">
-                      <Icon className="h-[18px] w-[18px]" strokeWidth={1.6} />
-                    </span>
-                    <span>
-                      <span className="mb-1 block font-ui text-[9px] font-medium uppercase tracking-[0.12em] text-white/32">
-                        {label}
-                      </span>
-                      <span className="block font-body text-sm text-white/78">{value}</span>
-                    </span>
-                  </>
-                );
-
-                return href ? (
-                  <a key={label} href={href} className="flex items-center gap-4 transition-opacity hover:opacity-70">
-                    {content}
-                  </a>
-                ) : (
-                  <div key={label} className="flex items-center gap-4">{content}</div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="mt-12">
-            <p className="mb-5 font-ui text-[11px] font-semibold uppercase tracking-[0.18em] text-white/82">
-              Social info
-            </p>
-            <div className="flex gap-3">
-              {socials.map(({ name, url, icon: Icon }) => (
-                <motion.a
-                  key={name}
-                  href={url}
-                  target="_blank"
-                  rel="noreferrer"
-                  whileHover={{ y: -3 }}
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/72 transition-colors hover:bg-white hover:text-black"
-                  aria-label={name}
-                  title={name}
-                >
-                  <Icon className="h-[18px] w-[18px]" strokeWidth={1.7} />
-                </motion.a>
-              ))}
-            </div>
-          </div>
-        </ScrollReveal>
-
-        <ScrollReveal delay={0.12} className="relative overflow-hidden rounded-lg border border-white/8 bg-[#141414] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.32)] sm:p-8 md:p-10">
-          <Sparkles className="absolute right-7 top-7 h-8 w-8 text-white/34" strokeWidth={1.1} />
-
-          <h2 className="mb-8 pr-12 font-heading text-[clamp(2rem,calc(4.5*var(--vw)),3.5rem)] font-semibold leading-none tracking-[-0.025em] text-white">
-            Let&apos;s work <span className="text-yellow">together.</span>
-          </h2>
-
-          <form className="relative z-10 flex flex-col gap-3" onSubmit={handleSubmit}>
-            <label htmlFor="contact-name" className="sr-only">Your name</label>
-            <input
-              id="contact-name"
-              name="name"
-              type="text"
-              required
-              autoComplete="name"
-              placeholder="Name *"
-              className="h-12 w-full rounded-md border border-white/5 bg-white/[0.045] px-4 font-body text-base text-white outline-none transition-colors placeholder:text-white/32 focus:border-white/22 sm:text-sm"
-            />
-            <label htmlFor="contact-email" className="sr-only">Your email address</label>
-            <input
-              id="contact-email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              placeholder="Email *"
-              className="h-12 w-full rounded-md border border-white/5 bg-white/[0.045] px-4 font-body text-base text-white outline-none transition-colors placeholder:text-white/32 focus:border-white/22 sm:text-sm"
-            />
-            <label htmlFor="contact-subject" className="sr-only">Message subject</label>
-            <input
-              id="contact-subject"
-              name="subject"
-              type="text"
-              required
-              placeholder="Your Subject *"
-              className="h-12 w-full rounded-md border border-white/5 bg-white/[0.045] px-4 font-body text-base text-white outline-none transition-colors placeholder:text-white/32 focus:border-white/22 sm:text-sm"
-            />
-            <label htmlFor="contact-message" className="sr-only">Your message</label>
-            <textarea
-              id="contact-message"
-              name="message"
-              rows={5}
-              required
-              placeholder="Your Message *"
-              className="w-full resize-none rounded-md border border-white/5 bg-white/[0.045] px-4 py-4 font-body text-base text-white outline-none transition-colors placeholder:text-white/32 focus:border-white/22 sm:text-sm"
-            />
-            <motion.button
-              whileHover={{ y: -1 }}
-              whileTap={{ scale: 0.99 }}
-              type="submit"
-              className="mt-1 h-12 w-full rounded-md border border-white/10 bg-white/[0.09] font-ui text-[11px] font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-white hover:text-black"
+            <h2
+              id="contact-heading"
+              ref={headingRef}
+              aria-label="What should we build now?"
+              className={`contact-build-next mt-4 font-display font-extrabold uppercase text-white${headlineVisible ? ' is-live' : ''}`}
+              style={{
+                fontSize: 'clamp(38px, 5.2vw, 83.2px)',
+                lineHeight: 'clamp(32px, 4.4vw, 64.9px)',
+                letterSpacing: '-0.07em',
+              }}
             >
-              Send Message
-            </motion.button>
-          </form>
-        </ScrollReveal>
+              WHAT SHOULD WE<br />
+              BUILD{' '}
+              <span className="contact-next-word select-none" aria-hidden="true">
+                <span className="contact-next-old">NEXT</span>
+                <span className="contact-next-line" />
+              </span>
+              <span className="contact-next-now" aria-hidden="true">{' NOW'}</span>?
+            </h2>
+          </div>
+
+          {/* Email: Pure text link without any oval pill or extra button */}
+          <div className={`contact-email-reveal relative mt-10${headlineVisible ? ' is-live' : ''}`}>
+            <a
+              id="contact-email"
+              href={`mailto:${EMAIL_ADDRESS}`}
+              onClick={handleCopy}
+              className="group relative inline-block font-mono font-normal text-white transition-opacity duration-200 hover:opacity-75 focus:outline-none"
+              style={{
+                fontSize: 'clamp(18px, 1.6vw, 25.6px)',
+                lineHeight: '38.4px',
+                letterSpacing: '2.05px',
+              }}
+              aria-label={`Copy ${EMAIL_ADDRESS} to clipboard`}
+            >
+              {EMAIL_ADDRESS}
+
+              {/* Minimal floating tooltip feedback on click */}
+              <AnimatePresence>
+                {copied && (
+                  <motion.span
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-white px-2 py-0.5 font-mono text-[10px] font-medium tracking-[0.15em] text-black shadow"
+                  >
+                    COPIED ✓
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </a>
+          </div>
+        </div>
       </div>
+
+      {/* Footer Block: Frank Martin & Subtitle */}
+      <footer className="contact-footer relative z-10 flex flex-col items-center justify-center text-center pb-2">
+        <p
+          className="font-display font-extrabold uppercase text-white"
+          style={{
+            fontSize: 'clamp(32px, 2.8vw, 44.8px)',
+            lineHeight: 'clamp(28px, 2.2vw, 34.9px)',
+            letterSpacing: '-0.07em',
+          }}
+        >
+          FRANK<br />
+          MARTIN
+        </p>
+        <p className="mt-4 font-mono text-[11px] font-normal uppercase tracking-[2.42px] text-[#aaa]">
+          ECOMMERCE VIRTUAL ASSISTANT · SHOPIFY SPECIALIST
+        </p>
+      </footer>
     </section>
   );
 };

@@ -1,0 +1,44 @@
+.hero-editor-panel {
+  box-sizing: border-box;
+}
+
+.hero-editor-panel [data-editor-scroll] {
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.hero-editor-panel-mobile button {
+  min-height: 36px;
+}
+
+.hero-editor-panel-mobile button[aria-label^='Move '] {
+  min-width: 36px;
+}
+
+.hero-editor-panel-mobile input[type='number'],
+.hero-editor-panel-mobile input[type='text'] {
+  min-height: 40px;
+  /* Avoid iOS zooming the page while editing a field. */
+  font-size: 16px !important;
+}
+
+.hero-editor-panel-mobile input[type='range'] {
+  min-height: 36px;
+  margin: 0;
+  touch-action: pan-x;
+}
+
+.hero-editor-panel-mobile input[type='color'] {
+  min-height: 40px;
+}
+
+.hero-editor-panel-mobile textarea {
+  font-size: 16px !important;
+}
+
+.hero-editor-panel button:focus-visible,
+.hero-editor-panel input:focus-visible,
+.hero-editor-panel textarea:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+}

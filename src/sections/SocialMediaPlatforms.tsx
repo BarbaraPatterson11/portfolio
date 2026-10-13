@@ -19,23 +19,22 @@ export const SocialMediaPlatforms: React.FC = () => {
   const sectionRef = useRef<HTMLElement>(null);
 
   return (
-    <section id="social-platforms" ref={sectionRef} className="overflow-hidden bg-black pb-12 pt-28 md:pb-16 md:pt-40">
-      <div className="relative z-10 max-w-6xl mx-auto px-6 md:px-12">
+    <section id="social-platforms" ref={sectionRef} className="mobile-seamless-section relative overflow-hidden bg-black pb-12 pt-28 text-white md:pb-16 md:pt-40 max-sm:pb-10 max-sm:pt-20">
+      <div className="relative z-10 mx-auto max-w-6xl px-6 md:px-12 max-sm:px-4">
         {/* Section Header */}
-        <ScrollReveal className="text-center mb-16 md:mb-20">
-          <span className="font-ui text-[11px] font-semibold uppercase tracking-[0.25em] text-white/50 mb-4 block">
+        <ScrollReveal className="mb-16 text-center md:mb-20 max-sm:mb-8">
+          <span className="mb-3 block font-mono text-[10px] md:text-[11px] font-medium uppercase tracking-[0.28em] text-white/50 max-sm:text-[9.5px]">
             Platforms I Manage
           </span>
-          <h2 className="font-serif-display text-[clamp(2.2rem,calc(4.5*var(--vw)),3.8rem)] font-bold text-white tracking-wide uppercase">
+          <h2 className="font-display text-[clamp(2.5rem,calc(5*var(--vw)),4.5rem)] font-extrabold uppercase leading-[0.9] tracking-[-0.07em] text-white">
             Social Media Platforms
           </h2>
-          <div className="w-12 h-[2px] bg-white/20 mt-5 mx-auto" />
         </ScrollReveal>
 
         {/* Platforms Grid — branded circles (Staggered ScrollReveal) */}
         <ScrollReveal
           staggerChildren={0.06}
-          className="grid grid-cols-2 sm:grid-cols-4 gap-10 max-w-3xl mx-auto"
+          className="mx-auto grid max-w-3xl grid-cols-2 gap-10 sm:grid-cols-4 max-sm:max-w-[22rem] max-sm:grid-cols-4 max-sm:gap-x-2 max-sm:gap-y-6"
         >
           {platforms.map((platform) => {
             const PlatformItem = platform.url ? motion.a : motion.div;
@@ -51,12 +50,12 @@ export const SocialMediaPlatforms: React.FC = () => {
                 visible: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', bounce: 0.5, duration: 0.8 } },
               }}
               whileHover={{ y: -8, scale: 1.08 }}
-              className={`group flex flex-col items-center gap-4 ${platform.url ? 'cursor-pointer' : 'cursor-default opacity-75'}`}
+              className={`group flex flex-col items-center gap-4 max-sm:gap-2 ${platform.url ? 'cursor-pointer' : 'cursor-default opacity-75'}`}
             >
-              <div className="w-20 h-20 md:w-[88px] md:h-[88px] flex items-center justify-center transition-all duration-300">
+              <div className="flex h-20 w-20 items-center justify-center transition-all duration-300 md:h-[88px] md:w-[88px] max-sm:h-12 max-sm:w-12">
                 <CustomIcon src={`${import.meta.env.BASE_URL}icons/social/${platform.id}`} alt={platform.name} className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-125" />
               </div>
-              <span className="font-ui text-[11px] font-semibold uppercase tracking-wider text-white/50 transition-colors group-hover:text-white">
+              <span className="text-center font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-white/40 transition-colors group-hover:text-white max-sm:text-[8px] max-sm:leading-tight max-sm:tracking-[0.1em]">
                 {platform.name}
               </span>
             </PlatformItem>

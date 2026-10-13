@@ -35,6 +35,7 @@ type Interaction =
     startClient: { x: number; y: number };
     origin: { x: number; y: number };
     scale: number;
+    moved: boolean;
     /** Canvas position the element would have with a zero offset. */
     natural: { x: number; y: number };
     size: { w: number; h: number };
@@ -140,7 +141,9 @@ const EditorRoot: React.FC = () => {
   // below: turning it on used to tear the loop down and take the selection with
   // it, so opening the debug panel deselected whatever you were inspecting.
   const debugRef = useRef(debug);
+  const saveLayoutRef = useRef(saveLayout);
   useEffect(() => {
+    saveLayoutRef.current = saveLayout;
     layoutRef.current = layout;
     registryRef.current = registry;
     selectedRef.current = selectedId;
@@ -273,6 +276,7 @@ const EditorRoot: React.FC = () => {
       startClient: { x: clientX, y: clientY },
       origin: { x: config.x || 0, y: config.y || 0 },
       scale: measured.frame.scale,
+      moved: false,
       natural: {
         x: measured.canvas.x - (config.x || 0),
         y: measured.canvas.y - (config.y || 0),
@@ -335,6 +339,7 @@ const EditorRoot: React.FC = () => {
       if (active.kind === 'drag') {
         const dx = (event.clientX - active.startClient.x) / active.scale;
         const dy = (event.clientY - active.startClient.y) / active.scale;
+        if (Math.abs(dx) + Math.abs(dy) > 0.75) active.moved = true;
         let x = active.origin.x + dx;
         let y = active.origin.y + dy;
 
@@ -364,23 +369,40 @@ const EditorRoot: React.FC = () => {
     };
 
     const handleUp = () => {
-      if (!interaction.current) return;
-      if (interaction.current.kind === 'resize' && anchorFix.current) {
+      const completed = interaction.current;
+      if (!completed) return;
+      if (completed.kind === 'resize' && anchorFix.current) {
         // Let the correction finish, then stop steering the element.
         anchorFix.current = { ...anchorFix.current, sticky: false, frames: 12 };
       }
       interaction.current = null;
       setBusy(false);
       setGuides({ v: [], h: [] });
+      if (completed.kind === 'drag' && completed.moved
+        && (completed.id === 'characterImage' || completed.id === 'characterImageMobile')) {
+        // Wait one frame so React has committed the final pointer coordinates,
+        // then persist the new image position automatically.
+        requestAnimationFrame(() => { void saveLayoutRef.current(); });
+      }
+    };
+    const preventViewportScroll = (event: WheelEvent | TouchEvent) => {
+      // The canvas stays frozen, while the floating inspector can scroll and
+      // its sliders, inputs and export text remain usable on a touchscreen.
+      if (event.target instanceof Element && event.target.closest('[data-editor-panel]')) return;
+      event.preventDefault();
     };
 
     window.addEventListener('pointermove', handleMove, { passive: true });
     window.addEventListener('pointerup', handleUp);
     window.addEventListener('pointercancel', handleUp);
+    window.addEventListener('wheel', preventViewportScroll, { passive: false });
+    window.addEventListener('touchmove', preventViewportScroll, { passive: false });
     return () => {
       window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', handleUp);
       window.removeEventListener('pointercancel', handleUp);
+      window.removeEventListener('wheel', preventViewportScroll);
+      window.removeEventListener('touchmove', preventViewportScroll);
     };
   }, [editMode, hitTest, snap, updateProps]);
 
@@ -399,6 +421,12 @@ const EditorRoot: React.FC = () => {
       }
       if (typing) return;
 
+      if (['PageUp', 'PageDown', 'Home', 'End'].includes(event.key)
+        || (event.key === ' ' && target?.tagName !== 'BUTTON')) {
+        event.preventDefault();
+        return;
+      }
+
       if (event.key === 'Escape') {
         event.preventDefault();
         if (selectedRef.current) setSelectedId(null);
@@ -409,7 +437,11 @@ const EditorRoot: React.FC = () => {
       const axis = ({
         ArrowLeft: ['x', -1], ArrowRight: ['x', 1], ArrowUp: ['y', -1], ArrowDown: ['y', 1],
       } as Record<string, ['x' | 'y', number]>)[event.key];
-      if (!axis || !selectedRef.current) return;
+      if (!axis) return;
+      if (!selectedRef.current) {
+        event.preventDefault();
+        return;
+      }
 
       event.preventDefault();
       const [prop, direction] = axis;
@@ -560,6 +592,8 @@ const SelectionOverlay: React.FC<{
   measurement: Measurement;
   onResize: (corner: Corner, clientX: number, clientY: number) => void;
 }> = ({ measurement, onResize }) => {
+  const { mode } = useViewport();
+  const handleSize = mode === 'mobile' ? 32 : 12;
   const { client, canvas } = measurement;
   const chipTop = client.y > 34 ? client.y - 26 : client.y + client.h + 6;
 
@@ -584,13 +618,14 @@ const SelectionOverlay: React.FC<{
             }}
             style={{
               position: 'absolute',
-              left: point.x - 6, top: point.y - 6,
-              width: 12, height: 12,
-              background: '#fff', border: `2px solid ${ACCENT}`, borderRadius: 3,
-              boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
+              left: point.x - handleSize / 2, top: point.y - handleSize / 2,
+              width: handleSize, height: handleSize,
+              display: 'grid', placeItems: 'center',
               cursor, pointerEvents: 'auto', touchAction: 'none',
             }}
-          />
+          >
+            <span style={{ width: 12, height: 12, boxSizing: 'border-box', background: '#fff', border: `2px solid ${ACCENT}`, borderRadius: 3, boxShadow: '0 1px 4px rgba(0,0,0,0.35)', pointerEvents: 'none' }} />
+          </div>
         );
       })}
 

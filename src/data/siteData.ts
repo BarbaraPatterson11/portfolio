@@ -55,33 +55,33 @@ export const siteData: SiteData = {
   services: [
     {
       icon: '📁',
-      title: 'Administrative Support',
-      description: 'Data entry, file management, research, and day-to-day admin tasks to keep your business running smoothly.',
+      title: 'Shopify Store Management',
+      description: 'Store setup, theme updates, collections, inventory, merchandising, store maintenance, and quality assurance.',
     },
     {
       icon: '📅',
-      title: 'Calendar & Email Management',
-      description: 'Inbox zero strategy, scheduling, appointment coordination, and email template creation.',
+      title: 'Product Listing & Catalog Management',
+      description: 'Product uploads, descriptions, images, variants, SKUs, collections, CSV import/export, and bulk editing.',
     },
     {
       icon: '📱',
-      title: 'Social Media Scheduling',
-      description: 'Content planning, post scheduling, engagement tracking, and platform management across all channels.',
+      title: 'Shopify UI/UX & Storefront Design',
+      description: 'Homepage, product pages, landing pages, mobile-first layouts, navigation, and theme customization.',
     },
     {
       icon: '👥',
-      title: 'CRM & Lead Tracking',
-      description: 'HubSpot, Salesforce, and custom CRM setup, contact management, and sales pipeline tracking.',
+      title: 'Conversion Rate Optimization (CRO)',
+      description: 'PDP optimization, landing page optimization, A/B testing, offer testing, CTA optimization, cart UX, and purchase friction reduction.',
     },
     {
       icon: '⚙️',
-      title: 'Automation Setup',
-      description: 'Zapier workflows, automated email sequences, and system integrations to save you hours every week.',
+      title: 'Shopify SEO & Performance',
+      description: 'Product SEO, metadata, alt text, technical SEO basics, page speed, and mobile performance.',
     },
     {
       icon: '✏️',
-      title: 'Content Repurposing',
-      description: 'Transform long-form content into social posts, newsletters, carousels, and blog summaries.',
+      title: 'E-commerce Marketing & Automation',
+      description: 'Klaviyo, Shopify Email, Shopify Flow, email campaigns, customer segmentation, abandoned checkout recovery, and retention automation.',
     },
   ],
   portfolio: [
@@ -228,21 +228,10 @@ export const siteData: SiteData = {
       badge: '📊',
     },
   ],
-  whyHireMe: {
-    headline: 'Your Business Deserves Someone Who Actually Cares.',
-    points: [
-      'I treat your business like it\'s my own — with dedication, precision, and heart.',
-      'Every deadline met. Every task done right. No excuses.',
-      'Proactive problem-solver who anticipates needs before they arise.',
-      'Seamless communication — you\'ll always know where things stand.',
-      'Systems thinker who builds workflows that scale with your growth.',
-      'Constantly learning, upskilling, and staying ahead of the curve.',
-    ],
-  },
   contact: {
     headline: 'Let\'s Build Something Great Together',
     subtext: 'Ready to free up your time and scale your business? Let\'s chat about how I can help.',
-    email: 'agnesann@email.com',
+    email: 'frankglen62@gmail.com',
   },
   socials: [
     { platform: 'Facebook', href: '#' },

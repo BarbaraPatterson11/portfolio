@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useIsMobileCanvas } from '../../hooks/useViewport';
+import { scrollToPosition } from '../../lib/smoothScroll';
 
 const navItems = [
   { id: 'home', label: 'INTRO', num: '00' },
@@ -67,10 +68,6 @@ export const SideNav: React.FC<SideNavProps> = ({ isVisible }) => {
     }, 1000);
     return () => clearTimeout(timer);
   }, []);
-
-  const scrollToPosition = (targetY: number) => {
-    window.scrollTo({ top: targetY, behavior: 'smooth' });
-  };
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
@@ -146,8 +143,7 @@ export const SideNav: React.FC<SideNavProps> = ({ isVisible }) => {
                   {/* Number - Fixed Width Container to keep aligned when thin */}
                   <div className="min-w-[20px] flex justify-center flex-shrink-0 z-10">
                     <span
-                      style={{ fontFamily: '"Archivo", sans-serif', fontSize: '9.5px', letterSpacing: '2px' }}
-                      className={`transition-all duration-300 font-normal ${
+                      className={`font-mono text-[9px] tracking-[0.18em] transition-all duration-300 font-normal ${
                         isActive ? 'text-dark group-hover:font-bold' : 'text-dark/40 group-hover:text-dark/80 group-hover:font-bold'
                       }`}
                     >
@@ -169,8 +165,7 @@ export const SideNav: React.FC<SideNavProps> = ({ isVisible }) => {
                     
                     {/* Title */}
                     <span
-                      style={{ fontFamily: '"Archivo", sans-serif', fontSize: '9.5px', letterSpacing: '2px' }}
-                      className={`uppercase transition-all duration-300 origin-left font-normal ${
+                      className={`font-mono text-[9px] tracking-[0.18em] uppercase transition-all duration-300 origin-left font-normal ${
                         isActive ? 'text-dark group-hover:font-bold' : 'text-dark/40 group-hover:text-dark/80 group-hover:font-bold'
                       }`}
                     >

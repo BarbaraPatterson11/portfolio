@@ -1,7 +1,8 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useVisualEditor, type ElementConfig } from '../../contexts/VisualEditorContext';
 import { useViewport } from '../../hooks/useViewport';
 import { ACCENT, useEditorStage, type Overlays } from './stage';
+import './EditorPanel.css';
 
 /* ═══════════════════════════════════════════════════════════════
    THE PANEL
@@ -152,6 +153,7 @@ const GearButton: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
       return null;   // first run, or storage blocked
     }
   });
+  const positionRef = useRef(position);
   const drag = useRef<{ dx: number; dy: number; moved: boolean } | null>(null);
 
   const spot = position ?? { x: 12, y: Math.max(12, screenHeight - 72) };
@@ -169,13 +171,16 @@ const GearButton: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
         if (!drag.current) return;
         const next = { x: event.clientX - drag.current.dx, y: event.clientY - drag.current.dy };
         if (Math.abs(next.x - x) > 2 || Math.abs(next.y - y) > 2) drag.current.moved = true;
+        positionRef.current = next;
         setPosition(next);
       }}
       onPointerUp={() => {
         const moved = drag.current?.moved;
         drag.current = null;
         if (moved) {
-          try { localStorage.setItem(GEAR_KEY, JSON.stringify({ x, y })); } catch { /* ignore */ }
+          // Read the latest pointer position, not the previous render's `x/y`.
+          // This prevents the saved gear location from lagging one pointer frame.
+          try { localStorage.setItem(GEAR_KEY, JSON.stringify(positionRef.current ?? { x, y })); } catch { /* ignore */ }
           return;
         }
         onOpen();
@@ -203,14 +208,36 @@ export const EditorPanel: React.FC = () => {
   const {
     layout, editMode, setEditMode, selectedId, setSelectedId, registry,
     updateProp, updateProps, resetElement, resetAll, saveLayout, isSaving, saveStatus,
+    savedLayoutJson,
   } = useVisualEditor();
   const viewport = useViewport();
   const stage = useEditorStage();
   const isMobile = viewport.mode === 'mobile';
+  const selectedEntry = selectedId ? registry[selectedId] : null;
 
   const [collapsed, setCollapsed] = useState(false);
-  const [offset, setOffset] = useState<{ x: number; y: number } | null>(null);
-  const drag = useRef<{ dx: number; dy: number } | null>(null);
+  const [geometry, setGeometry] = useState<Partial<Record<'mobile' | 'desktop', { x: number; y: number; width: number; height: number }>>>({});
+  const interaction = useRef<{ pointerId: number; kind: 'move' | 'resize'; side: 'left' | 'right'; startX: number; startY: number; x: number; y: number; width: number; height: number } | null>(null);
+  const [visibleArea, setVisibleArea] = useState(() => ({ x: 0, y: 0, width: viewport.screenWidth, height: viewport.screenHeight }));
+  const [copyResult, setCopyResult] = useState<{ json: string; message: string } | null>(null);
+  const copyStatus = copyResult?.json === savedLayoutJson ? copyResult.message : 'Copy settings';
+  const exportRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const update = () => {
+      const view = window.visualViewport;
+      setVisibleArea({ x: view?.offsetLeft ?? 0, y: view?.offsetTop ?? 0, width: view?.width ?? window.innerWidth, height: view?.height ?? window.innerHeight });
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('scroll', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('scroll', update);
+    };
+  }, []);
 
   const entries = useMemo(
     () => Object.values(registry).sort((a, b) => a.label.localeCompare(b.label)),
@@ -220,27 +247,76 @@ export const EditorPanel: React.FC = () => {
   const config: ElementConfig | null = selectedId ? layout[selectedId] ?? null : null;
   const measured = stage.selection;
 
-  const width = isMobile ? Math.min(viewport.screenWidth - 16, 352) : 272;
-  const maxHeight = isMobile
-    ? Math.min(viewport.screenHeight * 0.62, 520)
-    : Math.min(viewport.screenHeight * 0.86, 720);
-
-  // Docked to the bottom on a phone, top-left on desktop — but always movable.
-  // On the 372-wide canvas the panel covers most of the composition, so being
-  // able to shove it aside is the difference between usable and not.
-  const home = isMobile
-    ? { x: 8, y: Math.max(8, viewport.screenHeight - maxHeight - 8) }
-    : { x: 12, y: 12 };
-  const wanted = offset ?? home;
+  const availableWidth = Math.max(1, visibleArea.width - 16);
+  const availableHeight = Math.max(1, visibleArea.height - 16);
+  const minWidth = Math.min(240, availableWidth);
+  const minHeight = Math.min(180, availableHeight);
+  const defaultHeight = Math.min(availableHeight, isMobile ? Math.min(visibleArea.height * 0.46, 390) : 720);
+  const wanted = geometry[viewport.mode] ?? {
+    x: visibleArea.x + 8,
+    y: visibleArea.y + (isMobile ? visibleArea.height - defaultHeight - 8 : 8),
+    width: isMobile ? Math.min(300, availableWidth) : 272,
+    height: defaultHeight,
+  };
+  const width = Math.min(availableWidth, Math.max(minWidth, wanted.width));
+  const height = Math.min(availableHeight, Math.max(minHeight, wanted.height));
+  const shownHeight = collapsed ? Math.min(60, availableHeight) : height;
   const place = {
-    x: Math.min(Math.max(4, wanted.x), Math.max(4, viewport.screenWidth - width - 4)),
-    y: Math.min(Math.max(4, wanted.y), Math.max(4, viewport.screenHeight - 44)),
+    x: Math.min(Math.max(visibleArea.x + 8, wanted.x), visibleArea.x + visibleArea.width - width - 8),
+    y: Math.min(Math.max(visibleArea.y + 8, wanted.y), visibleArea.y + visibleArea.height - shownHeight - 8),
   };
 
-  const onPointerDownHeader = useCallback((event: React.PointerEvent) => {
+  const beginInteraction = (event: React.PointerEvent, kind: 'move' | 'resize', side: 'left' | 'right' = 'right') => {
+    if (event.button !== 0 || (event.target instanceof Element && kind === 'move' && event.target.closest('button'))) return;
+    event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    drag.current = { dx: event.clientX - place.x, dy: event.clientY - place.y };
-  }, [place.x, place.y]);
+    interaction.current = { pointerId: event.pointerId, kind, side, startX: event.clientX, startY: event.clientY, ...place, width, height };
+  };
+
+  const moveInteraction = (event: React.PointerEvent) => {
+    const active = interaction.current;
+    if (!active || active.pointerId !== event.pointerId) return;
+    const dx = event.clientX - active.startX;
+    const dy = event.clientY - active.startY;
+    const left = visibleArea.x + 8;
+    const top = visibleArea.y + 8;
+    const right = visibleArea.x + visibleArea.width - 8;
+    const bottom = visibleArea.y + visibleArea.height - 8;
+    const next = { x: active.x, y: active.y, width: active.width, height: active.height };
+    if (active.kind === 'move') {
+      next.x = Math.max(left, Math.min(active.x + dx, right - active.width));
+      next.y = Math.max(top, Math.min(active.y + dy, bottom - shownHeight));
+    } else {
+      const maxWidth = active.side === 'left' ? active.x + active.width - left : right - active.x;
+      next.width = Math.max(minWidth, Math.min(maxWidth, active.width + (active.side === 'left' ? -dx : dx)));
+      if (active.side === 'left') next.x = active.x + active.width - next.width;
+      next.height = Math.max(minHeight, Math.min(bottom - active.y, active.height + dy));
+    }
+    setGeometry(previous => ({ ...previous, [viewport.mode]: next }));
+  };
+  const endInteraction = () => { interaction.current = null; };
+
+  const copySettings = async () => {
+    if (!savedLayoutJson) return;
+    try {
+      await navigator.clipboard.writeText(savedLayoutJson);
+      setCopyResult({ json: savedLayoutJson, message: 'Copied!' });
+    } catch {
+      exportRef.current?.focus();
+      exportRef.current?.select();
+      setCopyResult({ json: savedLayoutJson, message: 'Selected — copy manually' });
+    }
+  };
+
+  const downloadSettings = () => {
+    if (!savedLayoutJson) return;
+    const url = URL.createObjectURL(new Blob([savedLayoutJson], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'hero-layout.json';
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
   if (!editMode) return <GearButton onOpen={() => setEditMode(true)} />;
 
@@ -248,9 +324,11 @@ export const EditorPanel: React.FC = () => {
 
   return (
     <div
+      data-editor-panel
+      className={`hero-editor-panel ${isMobile ? 'hero-editor-panel-mobile' : ''}`}
       style={{
         position: 'fixed', left: place.x, top: place.y, zIndex: 9999,
-        width, maxHeight,
+        width, height: shownHeight, maxHeight: availableHeight,
         display: 'flex', flexDirection: 'column',
         borderRadius: 14, overflow: 'hidden',
         background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(24px)',
@@ -264,16 +342,15 @@ export const EditorPanel: React.FC = () => {
     >
       {/* ── Header ── */}
       <div
-        onPointerDown={onPointerDownHeader}
-        onPointerMove={event => {
-          if (!drag.current) return;
-          setOffset({ x: event.clientX - drag.current.dx, y: event.clientY - drag.current.dy });
-        }}
-        onPointerUp={() => { drag.current = null; }}
+        onPointerDown={event => beginInteraction(event, 'move')}
+        onPointerMove={moveInteraction}
+        onPointerUp={endInteraction}
+        onPointerCancel={endInteraction}
+        onLostPointerCapture={endInteraction}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '8px 10px', borderBottom: '1px solid rgba(0,0,0,0.07)',
-          cursor: 'move', touchAction: 'none', flexShrink: 0,
+          padding: '8px 10px', minHeight: 60, boxSizing: 'border-box', borderBottom: '1px solid rgba(0,0,0,0.07)',
+          cursor: 'move', touchAction: 'none', userSelect: 'none', flexShrink: 0,
         }}
       >
         <div>
@@ -281,7 +358,7 @@ export const EditorPanel: React.FC = () => {
             Hero editor
           </div>
           <div style={{ fontSize: 9, fontWeight: 700, color: '#aaa', fontFamily: 'ui-monospace, monospace' }}>
-            {viewport.mode} · {viewport.designWidth}×{viewport.designHeight} · {Math.round(viewport.zoom * 100)}%
+            {viewport.mode} · Drag here to move
           </div>
         </div>
         <div style={{ display: 'flex', gap: 2 }}>
@@ -292,7 +369,7 @@ export const EditorPanel: React.FC = () => {
       </div>
 
       {!collapsed && (
-        <div style={{ overflowY: 'auto', overscrollBehavior: 'contain' }}>
+        <div data-editor-scroll style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', touchAction: 'pan-y' }}>
           {/* ── Save ── */}
           <Section title="Save">
             <div style={{ display: 'flex', gap: 6 }}>
@@ -322,14 +399,29 @@ export const EditorPanel: React.FC = () => {
             </div>
             <p style={{ margin: '6px 0 0', fontSize: 9, lineHeight: 1.45, fontWeight: 600, color: saveStatus === 'file' ? '#15803d' : saveStatus === 'local' ? '#0369a1' : saveStatus === 'error' ? '#b91c1c' : '#a0a0a0' }}>
               {saveStatus === 'file'
-                ? 'Written to layout.json — permanent, and every device and browser gets it.'
+                ? 'Saved in the project. Copy or download the settings below to share them.'
                 : saveStatus === 'local'
-                  ? 'Stored in this browser only — no dev server answered, so layout.json was not written. Re-save from npm run dev to make it permanent.'
+                  ? 'Saved on this device. Send me the settings below so I can make them permanent.'
                   : saveStatus === 'error'
-                    ? 'Nothing was stored. Browser storage is blocked (private mode?).'
-                    : 'Saves the whole layout. Positions are design pixels, so the result is identical on every device.'}
+                    ? 'Device storage is unavailable. You can still copy or download the settings below.'
+                    : 'Save to see all settings, ready to copy or download.'}
             </p>
           </Section>
+
+          {savedLayoutJson && (
+            <Section title="Saved settings">
+              <p style={{ margin: '0 0 8px', fontSize: 11, lineHeight: 1.5, color: '#666' }}>
+                All mobile and desktop settings from your last Save. Copy or download these and send them here to make the layout permanent. Save again after further edits.
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                <button type="button" style={exportButton} onClick={() => void copySettings()}>{copyStatus}</button>
+                <button type="button" style={exportButton} onClick={downloadSettings}>Download JSON</button>
+              </div>
+              <textarea ref={exportRef} aria-label="All saved hero settings" readOnly value={savedLayoutJson}
+                spellCheck={false} onFocus={event => event.currentTarget.select()}
+                style={{ width: '100%', boxSizing: 'border-box', height: 140, resize: 'vertical', border: '1px solid #ddd', borderRadius: 8, padding: 8, font: '11px/1.5 ui-monospace, monospace', color: '#333', background: '#fafafa' }} />
+            </Section>
+          )}
 
           {/* ── Elements ── */}
           <Section title={`${isMobile ? 'Mobile' : 'Desktop'} elements`}>
@@ -371,7 +463,7 @@ export const EditorPanel: React.FC = () => {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 28px)', gap: 3 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(3, ${isMobile ? 36 : 28}px)`, gap: 3 }}>
                     <span />
                     <button type="button" style={padButton} onClick={() => stage.nudge(0, -stage.step)} aria-label="Move up">↑</button>
                     <span />
@@ -393,7 +485,9 @@ export const EditorPanel: React.FC = () => {
                   </div>
                 </div>
                 <p style={{ margin: '6px 0 0', fontSize: 8.5, color: '#b3b3b3', lineHeight: 1.4 }}>
-                  Drag the element itself, or the corner handles to resize. Arrow keys nudge, Shift ×5, Ctrl+S saves.
+                  {selectedEntry?.kind === 'image'
+                    ? 'Drag the portrait to move it; its position saves automatically on release. Use Save to persist other edits.'
+                    : 'Drag the element itself, or the corner handles to resize. Arrow keys nudge, Shift ×5, Ctrl+S saves.'}
                 </p>
               </Section>
 
@@ -481,6 +575,22 @@ export const EditorPanel: React.FC = () => {
               </p>
             )}
           </Section>
+        </div>
+      )}
+      {!collapsed && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, height: 36, borderTop: '1px solid #eee', background: '#fafafa' }}>
+          {(['left', 'right'] as const).map(side => (
+            <React.Fragment key={side}>
+              {side === 'right' && <span style={{ fontSize: 10, color: '#888', pointerEvents: 'none' }}>Drag corners to resize</span>}
+              <button type="button" aria-label={`Resize settings from ${side} corner`}
+                onPointerDown={event => beginInteraction(event, 'resize', side)}
+                onPointerMove={moveInteraction} onPointerUp={endInteraction}
+                onPointerCancel={endInteraction} onLostPointerCapture={endInteraction}
+                style={{ width: 44, height: 36, padding: 0, border: 'none', color: ACCENT, background: 'transparent', fontSize: 22, touchAction: 'none', cursor: side === 'left' ? 'nesw-resize' : 'nwse-resize' }}>
+                {side === 'left' ? '◺' : '◿'}
+              </button>
+            </React.Fragment>
+          ))}
         </div>
       )}
     </div>
@@ -576,8 +686,13 @@ const DebugBody: React.FC = () => {
 
 /* ── Shared inline styles ─────────────────────────────────────── */
 const iconButton: React.CSSProperties = {
-  width: 22, height: 22, borderRadius: 6, border: 'none', background: 'none',
+  width: 36, height: 36, borderRadius: 6, border: 'none', background: 'none',
   color: '#999', fontSize: 12, lineHeight: 1, cursor: 'pointer',
+};
+
+const exportButton: React.CSSProperties = {
+  flex: 1, padding: '8px', borderRadius: 8, border: '1px solid rgba(249,115,22,0.3)',
+  background: '#fff7ed', color: '#c2410c', fontSize: 11, fontWeight: 700, cursor: 'pointer',
 };
 
 const padButton: React.CSSProperties = {

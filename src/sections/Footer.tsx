@@ -29,7 +29,7 @@ export const Footer: React.FC = () => {
       <ScrollReveal className="relative z-10 mx-auto max-w-6xl px-6 md:px-10">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-[1.25fr_0.8fr_0.9fr] md:gap-16">
           <div>
-            <a href="#home" className="font-serif-display text-3xl font-semibold leading-none tracking-normal text-white">
+            <a href="#home" className="font-display text-3xl font-extrabold uppercase leading-none tracking-[-0.05em] text-white">
               Frank.
             </a>
             <p className="mt-4 max-w-xs font-body text-sm leading-relaxed text-white/46">
@@ -44,8 +44,8 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          <div className="border-t border-white/24 pt-4">
-            <h3 className="mb-4 font-ui text-[11px] font-semibold uppercase tracking-[0.22em] text-white/78">Navigate</h3>
+          <div className="border-t border-white/10 pt-4">
+            <h3 className="mb-4 font-mono text-[10px] md:text-[11px] font-medium uppercase tracking-[0.24em] text-white/50">Navigate</h3>
             <nav className="grid grid-cols-2 gap-x-6 gap-y-2 md:grid-cols-1">
               {navigation.map(([label, href]) => (
                 <a key={label} href={href} className="font-body text-sm text-white/48 transition-colors hover:text-white">
@@ -55,8 +55,8 @@ export const Footer: React.FC = () => {
             </nav>
           </div>
 
-          <div className="border-t border-white/24 pt-4">
-            <h3 className="mb-4 font-ui text-[11px] font-semibold uppercase tracking-[0.22em] text-white/78">Expertise</h3>
+          <div className="border-t border-white/10 pt-4">
+            <h3 className="mb-4 font-mono text-[10px] md:text-[11px] font-medium uppercase tracking-[0.24em] text-white/50">Expertise</h3>
             <ul className="space-y-2">
               {expertise.map((item) => (
                 <li key={item} className="font-body text-sm text-white/48">{item}</li>
@@ -65,7 +65,7 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col gap-2 border-t border-white/20 pt-5 font-body text-xs text-white/36 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-12 flex flex-col gap-2 border-t border-white/10 pt-5 font-mono text-[11px] text-white/40 sm:flex-row sm:items-center sm:justify-between">
           <p>© {currentYear} Frank Glen Martin. All rights reserved.</p>
           <p>Ecommerce Virtual Assistant · Philippines</p>
         </div>

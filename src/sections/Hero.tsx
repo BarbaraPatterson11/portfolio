@@ -1,15 +1,17 @@
-import React, { useLayoutEffect, useRef, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import React, { useLayoutEffect, useRef, useCallback, useState } from 'react';
+import { motion, useAnimationControls, useReducedMotion } from 'framer-motion';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useVisualEditor } from '../contexts/VisualEditorContext';
 import { useViewport } from '../hooks/useViewport';
-import { getViewportState, getRenderScale, getCanvasOrigin } from '../lib/viewportStage';
 import { toCanvasLength } from '../lib/canvasUnits';
+import { scrollToPosition } from '../lib/smoothScroll';
 import { EditableElement } from '../components/editor/EditableElement';
-import { WordPullUp } from '../components/animations/WordPullUp';
 import { BlurredTextTicker } from '../components/ui/blurred-text-ticker';
-import { AnimatedCounter } from '../components/animations/AnimatedCounter';
+import { EcommerceArchitectureGraph } from '../components/ui/EcommerceArchitectureGraph';
+import { WorkflowPhaseCounter } from '../components/ui/WorkflowPhaseCounter';
+import { ShopifyWorkflowReadable } from '../components/ui/ShopifyWorkflowReadable';
+import { WORKFLOW_PHASES, getWorkflowState } from '../data/shopifyWorkflow';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -19,14 +21,25 @@ interface HeroProps {
 
 export const Hero: React.FC<HeroProps> = ({ isLoaded }) => {
   const sceneRef = useRef<HTMLElement>(null);
+  const workflowSceneRef = useRef<HTMLElement>(null);
   const portraitRef = useRef<HTMLDivElement>(null);
   const portraitPoseRef = useRef<HTMLDivElement>(null);
   const aboutRef = useRef<HTMLDivElement>(null);
+  const readableRef = useRef<HTMLDivElement>(null);
+  const workflowTriggerRef = useRef<ReturnType<typeof ScrollTrigger.create> | null>(null);
+  const portraitIntroControls = useAnimationControls();
+  const [workflowState, setWorkflowState] = useState(() => getWorkflowState(0));
+  const commitWorkflow = useCallback((progress: number) => {
+    const next = getWorkflowState(progress);
+    setWorkflowState(previous => previous.progress === next.progress ? previous : next);
+  }, []);
+  const reducedMotion = useReducedMotion();
   const { mode: canvasMode } = useViewport();
   const isMobileViewport = canvasMode === 'mobile';
-  const [aboutContentActive, setAboutContentActive] = React.useState(false);
+  const readableWorkflow = !!reducedMotion;
+  const activePhase = WORKFLOW_PHASES[workflowState.activePhase];
   const ease = [0.16, 1, 0.3, 1] as const;
-  const { layout, configLoaded, editMode, selectedId } = useVisualEditor();
+  const { layout, configLoaded, editMode } = useVisualEditor();
   const getLayout = useCallback((id: string) => {
     const mobileId = `${id}Mobile`;
     const config = isMobileViewport && layout[mobileId] ? layout[mobileId] : layout[id];
@@ -52,374 +65,288 @@ export const Hero: React.FC<HeroProps> = ({ isLoaded }) => {
     return layout[activeId]?.zIndex ?? fallback;
   }, [isMobileViewport, layout]);
 
-  // The About panel is hidden until the scroll timeline reveals it, so its title
-  // could never be edited. Selecting it in the editor brings the panel up.
-  const aboutSelected = editMode && (selectedId === 'aboutTitle' || selectedId === 'aboutTitleMobile');
+  const editModeRef = useRef(editMode);
+  useLayoutEffect(() => { editModeRef.current = editMode; }, [editMode]);
+
+  // Pause the portrait intro on the exact rendered frame while the editor is
+  // open. This lets the saved image position be inspected and dragged without
+  // an independent entrance animation continuing underneath the editor.
+  useLayoutEffect(() => {
+    if (editMode) {
+      portraitIntroControls.stop();
+      return;
+    }
+    void portraitIntroControls.start(isLoaded
+      ? { opacity: 1, scale: 1, x: 0, y: 0 }
+      : { opacity: 0, scale: 0.96, x: 0, y: isMobileViewport ? 0 : 30 });
+  }, [editMode, isLoaded, isMobileViewport, portraitIntroControls]);
+
+  // Keep the scroll-driven composition at the same frame while the editor is
+  // open. Disabling its trigger preserves GSAP's current inline transforms;
+  // re-enabling and refreshing resumes from the actual scroll position.
+  useLayoutEffect(() => {
+    const trigger = workflowTriggerRef.current;
+    if (!trigger) return;
+    if (editMode) trigger.disable(false);
+    else {
+      trigger.enable(false, false);
+      ScrollTrigger.refresh();
+    }
+  }, [editMode]);
 
   useLayoutEffect(() => {
-    // Skip GSAP entirely in edit mode — its inline transforms fight EditableElement.
-    // ctx.revert() (returned below) clears all GSAP inline styles when editMode turns on.
-    if (editMode || !configLoaded || !sceneRef.current || !portraitRef.current || !portraitPoseRef.current || !aboutRef.current) return;
+    // Keep this timeline mounted while editing. Tearing down its context resets
+    // the portrait wrappers to their initial transforms, which looked like the
+    // image moved as soon as the settings opened.
+    if (!configLoaded || !sceneRef.current || !workflowSceneRef.current || !portraitRef.current || !portraitPoseRef.current || !aboutRef.current) return;
 
     const ctx = gsap.context(() => {
       const heroItems = gsap.utils.toArray<HTMLElement>('.hero-scroll-out');
       const aboutItems = gsap.utils.toArray<HTMLElement>('.about-scroll-in');
 
-      gsap.set(aboutRef.current, { autoAlpha: 1 });
-      gsap.set(aboutItems, { autoAlpha: 0, y: 30 });
+      if (readableWorkflow) {
+        gsap.set(aboutRef.current, { autoAlpha: 0 });
+        gsap.set(heroItems, { autoAlpha: 1, y: 0 });
+        gsap.set(portraitRef.current, { x: 0, y: 0, scale: 1, autoAlpha: 1 });
+        gsap.set(portraitPoseRef.current, { x: 0, y: 0 });
+        let cards: { top: number; height: number }[] = [];
+        const measure = () => {
+          cards = Array.from(readableRef.current?.querySelectorAll<HTMLElement>('[data-readable-phase]') ?? []).map(card => {
+            const rect = card.getBoundingClientRect();
+            return { top: rect.top + window.scrollY, height: rect.height };
+          });
+        };
+        const update = () => {
+          const focus = window.scrollY + window.innerHeight * .5;
+          let index = 0;
+          cards.forEach((card, i) => { if (focus >= card.top) index = i; });
+          const card = cards[index];
+          if (!card) return;
+          const phase = WORKFLOW_PHASES[index];
+          const local = Math.max(0, Math.min(1, (focus - card.top) / card.height));
+          commitWorkflow(phase.start + local * (phase.end - phase.start));
+        };
+        measure();
+        workflowTriggerRef.current = ScrollTrigger.create({ trigger: readableRef.current, start: 'top bottom', end: 'bottom top', onUpdate: update,
+          onRefresh: () => { measure(); update(); } });
+        if (editModeRef.current) workflowTriggerRef.current.disable(false);
+        update();
+        return;
+      }
 
-      // Which composition plays is decided by the design canvas, not by the
-      // window width, so resizing the browser can never swap the animation.
-      const desktop = !isMobileViewport;
-      // Read directly instead of through gsap.matchMedia(): that helper only
-      // runs its callback while one of its queries matches, so a lone
-      // reduced-motion query would silently skip building the timeline —
-      // and the About panel would never fade in.
-      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-      const getDesktopPortraitX = () => -85;
-
-      const getAboutPortraitX = () => {
-        if (!portraitRef.current || !aboutRef.current) return 0;
-
-        // GSAP writes transforms in canvas units while getBoundingClientRect
-        // reports rendered pixels — so measure against the canvas box itself
-        // instead of against the window, and undo its exact render scale.
-        const { designWidth } = getViewportState();
-        const scale = getRenderScale(aboutRef.current);
-        const origin = getCanvasOrigin(aboutRef.current);
-
-        const image = portraitRef.current.querySelector('img');
-        const imageWidth = (image?.getBoundingClientRect().width ?? 0) / scale;
-        const aboutLeft = (aboutRef.current.getBoundingClientRect().left - origin.left) / scale;
-        const contentGap = Math.min(16, Math.max(12, designWidth * 0.0075));
-        const initialPoseX = getDesktopPortraitX();
-        const visibleRightFromCenter = imageWidth * (0.82174688 - 0.5);
-
-        return aboutLeft - contentGap - (designWidth / 2) - visibleRightFromCenter + initialPoseX;
-      };
-
+      // Hero and workflow adjoin in normal document flow. Only the workflow
+      // pins; portrait and copy retain their opacity and scroll together.
+      gsap.set(aboutRef.current, { autoAlpha: 1, pointerEvents: 'auto' });
+      gsap.set(aboutItems, { autoAlpha: 1, y: 0 });
+      gsap.set(portraitPoseRef.current, { x: 0, y: 0, scale: 1 });
+      const workflowClock = { progress: 0 };
       const timeline = gsap.timeline({
-        defaults: { ease: 'power2.out' },
-      scrollTrigger: {
-          trigger: sceneRef.current,
+        scrollTrigger: {
+          trigger: workflowSceneRef.current,
           start: 'top top',
           end: 'bottom bottom',
-        scrub: reduceMotion ? true : desktop ? 0.9 : 0.35,
-        invalidateOnRefresh: true,
-        onUpdate: self => {
-          if (self.progress >= 0.24) setAboutContentActive(true);
-        },
+          scrub: isMobileViewport ? 0.2 : 0.3,
+          invalidateOnRefresh: true,
         },
       });
+      workflowTriggerRef.current = timeline.scrollTrigger ?? null;
+      if (editModeRef.current) workflowTriggerRef.current?.disable(false);
 
-      timeline
-        .to(heroItems, {
-          autoAlpha: 0,
-          y: desktop ? -20 : -10,
-          duration: desktop ? 0.25 : 0.18,
-          stagger: desktop ? 0.015 : 0.008,
-        }, 0)
-        .fromTo(
-          portraitRef.current,
-          {
-            x: 0,
-            y: 0,
-            scale: 1,
-            autoAlpha: 1,
-          },
-          {
-            // Keep the final portrait edge clear of the About panel at
-            // every desktop aspect ratio.
-            x: desktop ? getAboutPortraitX : 0,
-            // Design pixels: the travel is part of the composition, so it must
-            // not scale with however tall this particular window happens to be.
-            y: desktop ? -60 : 24,
-            scale: desktop ? 1 : 0.96,
-            autoAlpha: desktop ? 1 : 0,
-            duration: desktop ? 0.72 : 0.46,
-            ease: desktop ? 'power2.inOut' : 'power1.out',
-          },
-          0.08,
-        )
-        .fromTo(
-          portraitPoseRef.current,
-          {
-            x: desktop ? getDesktopPortraitX : 0,
-            y: desktop ? -19 : 0,
-            scale: 1,
-          },
-          {
-            // Kept as a separate scroll layer so the saved Hero editor
-            // position is never mutated by the About transition.
-            x: 0,
-            y: 0,
-            scale: 1,
-            duration: desktop ? 0.72 : 0.46,
-            ease: 'power2.inOut',
-          },
-          0.08,
-        )
-        .to(
-          aboutItems,
-          {
-            autoAlpha: 1,
-            y: 0,
-            duration: desktop ? 0.28 : 0.22,
-            stagger: desktop ? 0.075 : 0.045,
-            ease: 'power2.out',
-          },
-          desktop ? 0.34 : 0.24,
-        );
+      // Preserve 3.4 screens of workflow progress once it reaches the top.
+      timeline.to(workflowClock, {
+        progress: 1,
+        duration: 1,
+        ease: 'none',
+        onUpdate: () => commitWorkflow(workflowClock.progress),
+      });
 
-      return () => timeline.kill();
+      // Rebuild at the actual scroll position after mode changes or a refresh.
+      // The single ScrollTrigger progress is the source of truth, including
+      // reverse scrolling and refreshes. Lenis already smooths physical input.
+      timeline.scrollTrigger?.refresh();
+      timeline.totalProgress(timeline.scrollTrigger?.progress ?? 0);
+      commitWorkflow(workflowClock.progress);
+
+      return () => {
+        timeline.kill();
+        workflowTriggerRef.current = null;
+      };
 
     }, sceneRef);
 
-    return () => ctx.revert();
-  }, [configLoaded, editMode, isMobileViewport]);
+    return () => {
+      workflowTriggerRef.current = null;
+      ctx.revert();
+    };
+  }, [configLoaded, isMobileViewport, readableWorkflow, commitWorkflow]);
 
   return (
     <section
       id="home"
       ref={sceneRef}
-      /* Height is scroll LENGTH, so it follows the window (two screenfuls of
-         travel everywhere). The composition inside does not — see .canvas-box. */
-      className="relative h-[calc(2*var(--screen-h))] min-h-[calc(2*var(--screen-h))] overflow-visible"
+      className={`relative bg-black overflow-visible ${readableWorkflow ? 'workflow-readable-mode' : ''}`}
     >
-      <div id="about" className="absolute top-1/2 h-px w-px" aria-hidden="true" />
+      <div className="hero-page relative h-[var(--screen-h)] min-h-[var(--screen-h)] overflow-hidden bg-black">
+        {/* Keep the saved composition on its fixed, bottom-anchored canvas. */}
+        <div className="hero-canvas hero-reference-composition canvas-box">
+          <div className="hero-reference-portrait" style={{ zIndex: getElementLayer('characterImage', 20) }}>
+            <div ref={portraitRef} className="h-full w-full will-change-transform">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96, x: 0, y: isMobileViewport ? 0 : 30 }}
+                animate={portraitIntroControls}
+                transition={{ duration: isMobileViewport ? 0.82 : 1.2, ease, delay: 0.12 }}
+                className="h-full w-full"
+              >
+                <div ref={portraitPoseRef} className="h-full w-full origin-bottom">
+                  <EditableElement id="characterImage" label="Portrait" kind="image" className="h-full w-full">
+                    <img
+                      src={`${import.meta.env.BASE_URL}profile.png`}
+                      alt="Frank Glen Martin"
+                      className="hero-reference-image"
+                      draggable={false}
+                      loading="eager"
+                      fetchPriority="high"
+                      decoding="async"
+                      style={{ width: getLayout('characterImage')?.width, height: getLayout('characterImage')?.height }}
+                    />
+                  </EditableElement>
+                </div>
+              </motion.div>
+            </div>
+          </div>
 
-      <div className="sticky top-0 h-[var(--screen-h)] min-h-[var(--screen-h)] overflow-hidden">
-        {/* This is the original Hero background, shared by both scroll states.
-            It fills the window at any shape — only the background is allowed to. */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(180deg, #000000 0%, #0a0a0a 20%, #111 40%, #0a0a0a 60%, #050505 80%, #000000 100%)',
-          }}
-        />
-
-      {/* ── The hero composition lives on a fixed design-w x design-h frame ──
-          Percentages, `top`/`bottom` and the editor's saved coordinates all
-          resolve against THIS box, never against the window, so the elements
-          keep their exact relationship to one another on every screen shape.
-          Extra window height shows up as more background above it. */}
-      <div className="hero-canvas canvas-box">
-        {/* The key light belongs to the composition, not to the window, so it
-            rides the canvas and keeps landing on the portrait's shoulders. */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: 'radial-gradient(ellipse 55% 50% at 50% 38%, rgba(30, 30, 30, 0.6) 0%, transparent 70%)',
-          }}
-        />
-
-
-        {/* One portrait layer is retained for the entire transition. */}
-        <div
-          className="hero-portrait absolute bottom-0 left-1/2 z-20 h-[calc(74*var(--vh))] will-change-transform"
-          style={{ zIndex: getElementLayer('characterImage', 20) }}
-        >
-          <div ref={portraitRef} className="h-full will-change-transform">
-            <motion.div
-            initial={{
-              opacity: 0,
-              scale: 0.96,
-              // On mobile the portrait must fade in at its final position.
-              // Only desktop keeps the subtle upward travel.
-              x: 0,
-              y: isMobileViewport ? 0 : 30,
-            }}
-            animate={isLoaded
-              ? { opacity: 1, scale: 1, x: 0, y: 0 }
-              : { opacity: 0, scale: 0.96, x: 0, y: isMobileViewport ? 0 : 30 }}
-            transition={{ duration: isMobileViewport ? 0.82 : 1.2, ease, delay: isMobileViewport ? 0.08 : 0.25 }}
-              className="h-full"
-            >
-              <div ref={portraitPoseRef} className="h-full origin-bottom will-change-transform">
-              <EditableElement id="characterImage" label="Portrait" kind="image" className="h-full" style={{ transformOrigin: 'bottom' }}>
-                <img
-                  src={`${import.meta.env.BASE_URL}frank-profile.webp`}
-                  alt="Frank Glen Martin"
-                  className="hero-portrait-img object-contain origin-bottom"
-                  draggable={false}
-                  loading="eager"
-                  fetchPriority="high"
-                  decoding="async"
-                  style={{
-                    width: getLayout('characterImage')?.width,
-                    height: getLayout('characterImage')?.height,
-                    pointerEvents: 'none',
-                  }}
-                />
+          <div className="hero-reference-copy">
+            <div className="hero-scroll-out" data-hero-identity style={{ zIndex: getElementLayer('iAmFrankText', 10) }}>
+              <EditableElement id="iAmFrankText" label="Frank Martin title">
+                <h1 className="hero-reference-name" style={{
+                  fontSize: getLayout('iAmFrankText')?.fontSize,
+                  fontWeight: getLayout('iAmFrankText')?.fontWeight,
+                  letterSpacing: getLayout('iAmFrankText')?.letterSpacing,
+                  lineHeight: getLayout('iAmFrankText')?.lineHeight,
+                  color: getLayout('iAmFrankText')?.color,
+                }}>
+                  {['Frank', 'Martin'].map((name, index) => (
+                    <span key={name} className="hero-name-line">
+                      <motion.span initial={reducedMotion ? false : { y: '105%' }}
+                        animate={{ y: 0 }} transition={{ duration: 0.9, delay: 0.3 + index * 0.1, ease }}>
+                        {name}
+                      </motion.span>
+                    </span>
+                  ))}
+                </h1>
               </EditableElement>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-
-
-        <div
-          className="hero-scroll-out hero-badge-wrap absolute left-[4%] md:left-[5%] lg:left-[8%] top-[47%] md:top-[50%] z-30 hidden md:block"
-          style={{ zIndex: getElementLayer('availableBadge', 30) }}
-        >
-          <EditableElement id="availableBadge" label="Available badge" kind="block">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: isMobileViewport ? 0.45 : 0.6, delay: isMobileViewport ? 0.28 : 0.8 }}
-              className="hero-availability-badge flex items-center gap-2.5 bg-black/50 backdrop-blur-sm px-5 py-3 rounded-full border border-white/10 shadow-sm origin-left"
-              style={{ opacity: getLayout('availableBadge')?.opacity }}
-            >
-              <span className="hero-availability-dot w-2.5 h-2.5 rounded-full shrink-0" />
-              <span className="font-body font-medium text-[13px] text-white">
-                {isMobileViewport ? 'Available for opportunities' : 'Available for new opportunities'}
-              </span>
-            </motion.div>
-          </EditableElement>
-        </div>
-
-        <div
-          className="hero-scroll-out hero-specialization-wrap absolute right-[4%] md:right-[5%] lg:right-[8%] top-[46%] md:top-[48%] z-30 max-w-[200px] text-right hidden md:block"
-          style={{ zIndex: getElementLayer('specializationText', 30) }}
-        >
-          <EditableElement id="specializationText" label="Specialization ticker">
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: isMobileViewport ? 0.32 : 0.75, ease }}
-              style={{
-                fontSize: getLayout('specializationText')?.fontSize,
-                fontWeight: getLayout('specializationText')?.fontWeight,
-                letterSpacing: getLayout('specializationText')?.letterSpacing,
-                lineHeight: getLayout('specializationText')?.lineHeight,
-                color: getLayout('specializationText')?.color,
-              }}
-            >
-              <BlurredTextTicker isMobile={isMobileViewport} />
-            </motion.div>
-          </EditableElement>
-        </div>
-
-        <div
-          className="hero-scroll-out hero-identity-wrap absolute bottom-[13%] md:bottom-[10%] left-[4%] md:left-[5%] lg:left-[8%] z-10 transform-gpu"
-          style={{ zIndex: getElementLayer('iAmFrankText', 10) }}
-        >
-          <EditableElement id="iAmFrankText" label="FRANK title">
-            <motion.h1
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: isMobileViewport ? 0.62 : 0.8, delay: isMobileViewport ? 0.4 : 1.0, ease: [0.16, 1, 0.3, 1] }}
-              className="hero-identity-title font-display text-white uppercase"
-              style={{
-                fontSize: getLayout('iAmFrankText')?.fontSize, fontWeight: getLayout('iAmFrankText')?.fontWeight,
-                letterSpacing: getLayout('iAmFrankText')?.letterSpacing, lineHeight: getLayout('iAmFrankText')?.lineHeight,
-                color: getLayout('iAmFrankText')?.color,
-              }}
-            >
-              Frank
-            </motion.h1>
-          </EditableElement>
-        </div>
-
-        <div
-          className="hero-scroll-out hero-role-wrap absolute bottom-[13%] md:bottom-[10%] right-[4%] md:right-[5%] lg:right-[8%] z-10 text-right transform-gpu"
-          style={{ zIndex: getElementLayer('roleTitleText', 10) }}
-        >
-          <EditableElement id="roleTitleText" label="Role title">
-            <motion.h2
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: isMobileViewport ? 0.62 : 0.8, delay: isMobileViewport ? 0.5 : 1.2, ease: [0.16, 1, 0.3, 1] }}
-              className="hero-role-title font-display text-white uppercase"
-              style={{
-                fontSize: getLayout('roleTitleText')?.fontSize, fontWeight: getLayout('roleTitleText')?.fontWeight,
-                letterSpacing: getLayout('roleTitleText')?.letterSpacing, lineHeight: getLayout('roleTitleText')?.lineHeight,
-                color: getLayout('roleTitleText')?.color,
-              }}
-            >
-              Ecommerce<br />Virtual<br />Assistant
-            </motion.h2>
-          </EditableElement>
-        </div>
-
-        {/* Editorial About state */}
-        <div
-          ref={aboutRef}
-          className={`hero-about-panel ${aboutSelected ? 'visible' : 'invisible'} absolute z-30 top-[10%] bottom-[7%] left-[6%] right-[6%] md:top-[14%] md:bottom-[8%] md:left-[51%] md:right-[6%] lg:left-[52%] lg:right-[8%] flex flex-col justify-start md:justify-center text-white`}
-        >
-          <div className="about-scroll-in font-ui text-[9px] md:text-[10px] font-semibold uppercase tracking-[0.32em] mb-3 md:mb-5 text-white/50">
-            Who I am
-          </div>
-
-          <EditableElement id="aboutTitle" label="About title" canLayer={false}>
-            <WordPullUp
-              words="Ecommerce VA for ambitious sellers"
-              className="about-scroll-in font-heading font-semibold tracking-[-0.045em] leading-[0.92] text-[clamp(2rem,calc(6.2*var(--vw)),5.6rem)] mb-5 md:mb-8"
-              style={{
-                fontSize: getLayout('aboutTitle')?.fontSize,
-                fontWeight: getLayout('aboutTitle')?.fontWeight,
-                letterSpacing: getLayout('aboutTitle')?.letterSpacing,
-                lineHeight: getLayout('aboutTitle')?.lineHeight,
-                opacity: getLayout('aboutTitle')?.opacity,
-                color: '#ffffff',
-              }}
-              wrapperFramerProps={{
-                hidden: { opacity: 0 },
-                show: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.12 } },
-              }}
-              framerProps={{
-                hidden: { opacity: 0, y: 18, filter: 'blur(6px)' },
-                show: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.45, ease } },
-              }}
-            />
-          </EditableElement>
-
-          <div className="about-scroll-in border-y border-white/20 py-3 md:py-5 mb-4 md:mb-6 grid grid-cols-3">
-            <div className="pr-2 md:pr-5 border-r border-white/15">
-              <AnimatedCounter value={2} suffix="+" active={aboutContentActive} className="font-heading text-xl md:text-4xl leading-none block" />
-              <span className="font-ui text-[7px] md:text-[9px] uppercase tracking-[0.13em] leading-tight mt-1.5 block">Years experience</span>
             </div>
-            <div className="px-2 md:px-5 border-r border-white/15">
-              <AnimatedCounter value={5} active={aboutContentActive} className="font-heading text-xl md:text-4xl leading-none block" />
-              <span className="font-ui text-[7px] md:text-[9px] uppercase tracking-[0.13em] leading-tight mt-1.5 block">Store platforms</span>
+
+            <div className="hero-scroll-out hero-reference-role-wrap">
+              <EditableElement id="roleTitleText" label="Shopify & Ecommerce VA">
+                <p className="hero-reference-role" style={{
+                  fontSize: getLayout('roleTitleText')?.fontSize,
+                  fontWeight: getLayout('roleTitleText')?.fontWeight,
+                  letterSpacing: getLayout('roleTitleText')?.letterSpacing,
+                  lineHeight: getLayout('roleTitleText')?.lineHeight,
+                  color: getLayout('roleTitleText')?.color,
+                }}><span>Shopify &amp;</span><span> Ecommerce VA</span></p>
+              </EditableElement>
             </div>
-            <div className="pl-2 md:pl-5">
-              <AnimatedCounter value={100} suffix="+" active={aboutContentActive} className="font-heading text-xl md:text-4xl leading-none block" />
-              <span className="font-ui text-[7px] md:text-[9px] uppercase tracking-[0.13em] leading-tight mt-1.5 block">Listings optimized</span>
+
+            <div className="hero-scroll-out hero-reference-specialization">
+              <EditableElement id="specializationText" label="Shopify specialization typewriter">
+                <div style={{ fontSize: getLayout('specializationText')?.fontSize }}>
+                  <BlurredTextTicker isMobile={isMobileViewport} />
+                </div>
+                <p className="hero-reference-lede">
+                  Product listings, store management, CRO and UI/UX design.
+                  From setup to everyday operations.
+                </p>
+              </EditableElement>
             </div>
+
           </div>
 
-          <p className="about-scroll-in font-body text-[12px] sm:text-[13px] md:text-[16px] font-medium leading-[1.65] md:leading-[1.7] max-w-[640px] mb-4 md:mb-7 text-white/70">
-            I'm <strong className="font-bold text-white">Frank Glen Martin</strong>, a detail-oriented Ecommerce Virtual Assistant helping Shopify, eBay, and Amazon sellers keep their stores accurate, organized, and ready to convert. I support product listings, SEO content, inventory updates, competitor research, and the everyday work that keeps ecommerce moving.
-          </p>
-
-          <ul className="about-scroll-in about-capabilities hidden" aria-label="Ecommerce support capabilities">
-            <li>Product listings</li>
-            <li>SEO content</li>
-            <li>Inventory updates</li>
-            <li>Product research</li>
-          </ul>
-
-          <div className="about-scroll-in flex flex-col sm:flex-row sm:items-center gap-3 md:gap-5">
-            <motion.a
-              href="#contact"
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.97 }}
-              className="inline-flex w-fit items-center gap-5 bg-white text-dark font-body font-semibold text-[10px] md:text-xs rounded-full px-5 md:px-7 py-3 md:py-3.5"
-            >
-              Let's Connect <span aria-hidden="true">-&gt;</span>
-            </motion.a>
-            <span className="block font-ui text-[8px] md:text-[10px] font-medium tracking-wide text-white/40">
-              E-commerce - Shopify support
-            </span>
-          </div>
+          <a href="#about" className="hero-scroll-out hero-scroll-story" onClick={event => {
+            const target = document.getElementById('about');
+            if (!target) return;
+            event.preventDefault();
+            scrollToPosition(window.scrollY + target.getBoundingClientRect().top);
+          }}>
+            <span>Scroll the story</span>
+            <span className="hero-scroll-chevrons" aria-hidden="true"><i /><i /></span>
+          </a>
         </div>
 
       </div>
+
+      <section id="about" ref={workflowSceneRef}
+        className="workflow-chapter relative h-[calc(4.4*var(--screen-h))] bg-black">
+        <div className="workflow-scene sticky top-0 h-[var(--screen-h)] overflow-hidden bg-black">
+          <div ref={aboutRef} className="hero-about-panel journey-panel">
+            <div className="about-scroll-in journey-backdrop" aria-hidden="true">
+              <svg viewBox="0 0 1920 920" preserveAspectRatio="xMidYMid slice">
+                <defs>
+                  <pattern id="journey-digits" width="42" height="54" patternUnits="userSpaceOnUse">
+                    <text x="8" y="18">0</text><text x="18" y="44">1</text>
+                  </pattern>
+                  <radialGradient id="journey-matrix-fade">
+                    <stop offset="0%" stopColor="white" /><stop offset="100%" stopColor="black" />
+                  </radialGradient>
+                  <mask id="journey-matrix-mask"><rect width="1920" height="920" fill="url(#journey-matrix-fade)" /></mask>
+                </defs>
+                <g mask="url(#journey-matrix-mask)" opacity=".055" transform="translate(110 100) skewX(-12)">
+                  <rect width="1900" height="760" fill="url(#journey-digits)" />
+                </g>
+              </svg>
+            </div>
+            <div className="journey-grid">
+              <div className="journey-copy-col">
+                <p className="about-scroll-in journey-kicker">MY SHOPIFY WORKFLOW</p>
+                <div className="about-scroll-in journey-counter" aria-label={`Phase ${workflowState.activePhase + 1} of 6`}>
+                  <WorkflowPhaseCounter value={workflowState.activePhase+1} compact={isMobileViewport} />
+                </div>
+                <div className="about-scroll-in journey-stage">
+                  <span className="journey-stage-diamond" aria-hidden="true" />
+                  <span>{activePhase.label}</span>
+                </div>
+                <div className="about-scroll-in journey-phase-copy">
+                  <div>
+                    <h2 className="journey-heading">{activePhase.heading}</h2>
+                    <p className="journey-copy">{activePhase.shortDescription}</p>
+                    {isMobileViewport ? (
+                      activePhase.leftDetails.length > 0 ? (
+                        <p className="journey-mobile-summary">Store audit · Data analysis · Customer insights · Strategic plan</p>
+                      ) : (
+                        <p className="journey-mobile-summary">{activePhase.areas.join(' · ')}</p>
+                      )
+                    ) : activePhase.leftDetails.length > 0 ? (
+                      <div className="journey-audit-details" aria-label="Audit and planning priorities">
+                        <p className="journey-audit-intro">{activePhase.description}</p>
+                        <ul>
+                          {activePhase.leftDetails.map((detail) => (
+                            <li key={detail.title}>
+                              <strong>{detail.title}</strong>
+                              <span>{detail.text}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <p className="journey-proof">{activePhase.description}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="about-scroll-in journey-system">
+                <EcommerceArchitectureGraph state={workflowState} />
+              </div>
+            </div>
+            <div className="about-scroll-in journey-footer">
+              <span>SCENE <strong>02</strong> · MY SHOPIFY WORKFLOW</span>
+              <a href="#services">EXPLORE SERVICES ↓</a>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div ref={readableRef} className={readableWorkflow ? 'workflow-readable-container' : 'sr-only'}>
+        <ShopifyWorkflowReadable state={workflowState} interactive={readableWorkflow} />
       </div>
     </section>
   );

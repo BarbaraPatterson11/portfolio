@@ -1,219 +1,187 @@
-import React, { useRef } from 'react';
-import { motion, useScroll, useTransform, useSpring, MotionValue } from 'framer-motion';
-import { ScrollReveal } from '../components/animations/ScrollReveal';
-import { useIsMobileCanvas } from '../hooks/useViewport';
+import React, { useRef, useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CraftParticleScene } from '../components/ui/CraftParticleScene';
 
-/**
- * How many canvas-viewport-heights of scrolling the whole stack takes.
- *
- * Desktop is unchanged. A phone has to move the same six cards with a thumb
- * rather than a wheel, and at 90 that was ~600 CSS px of dragging per card —
- * two full flicks to see the next one. 50 puts a card change inside one
- * comfortable swipe.
- */
-const TRACK_PER_CARD = { desktop: 90, mobile: 50 } as const;
-
-const services = [
+const servicesData = [
   {
-    title: 'Product Listing',
-    desc: 'Accurate, optimized listings across leading marketplaces.',
-    image: `${import.meta.env.BASE_URL}services-2026/product-listing-2026.webp`,
-    alt: 'Ecommerce virtual assistant building an optimized product listing at a modern workstation',
-    objectPosition: '52% center',
+    num: '01',
+    headline: 'STORE MANAGEMENT',
+    desc: 'Store setup, theme updates, collections, inventory, merchandising, store maintenance, and quality assurance.',
+    bullet: 'store setup, operations & maintenance',
   },
   {
-    title: 'Product Research',
-    desc: 'Clear product, competitor, and pricing insights.',
-    image: `${import.meta.env.BASE_URL}services-2026/product-research-2026.webp`,
-    alt: 'Product samples and modern competitor research dashboards',
-    objectPosition: '50% center',
+    num: '02',
+    headline: 'PRODUCT CATALOG',
+    desc: 'Product uploads, descriptions, images, variants, SKUs, collections, CSV import/export, and bulk editing.',
+    bullet: 'product listings, variants & bulk editing',
   },
   {
-    title: 'SEO & Optimization',
-    desc: 'Search-ready titles and descriptions that improve visibility.',
-    image: `${import.meta.env.BASE_URL}services-2026/seo-optimization-2026.webp`,
-    alt: 'Ecommerce SEO specialist reviewing keyword and search performance',
-    objectPosition: '50% center',
+    num: '03',
+    headline: 'STOREFRONT UI/UX',
+    desc: 'Homepage, product pages, landing pages, mobile-first layouts, navigation, and theme customization.',
+    bullet: 'mobile layouts, pdp design & navigation',
   },
   {
-    title: 'Inventory Management',
-    desc: 'Accurate stock, pricing, and availability updates.',
-    image: `${import.meta.env.BASE_URL}services-2026/inventory-management-2026.webp`,
-    alt: 'Inventory professional scanning ecommerce stock in an organized storeroom',
-    objectPosition: '51% center',
+    num: '04',
+    headline: 'CRO & CONVERSION',
+    desc: 'PDP optimization, landing page optimization, A/B testing, offer testing, CTA optimization, cart UX, and purchase friction reduction.',
+    bullet: 'a/b testing, cart ux & checkout flow',
   },
   {
-    title: 'Order Fulfillment',
-    desc: 'Reliable processing, tracking, and fulfillment support.',
-    image: `${import.meta.env.BASE_URL}services-2026/order-fulfillment-2026.webp`,
-    alt: 'Hands preparing and labeling an ecommerce order for shipment',
-    objectPosition: '50% center',
+    num: '05',
+    headline: 'SEO & SPEED',
+    desc: 'Product SEO, metadata, alt text, technical SEO basics, page speed, and mobile performance.',
+    bullet: 'product seo, metadata & site performance',
   },
   {
-    title: 'Store Management',
-    desc: 'Organized day-to-day support for smoother store operations.',
-    image: `${import.meta.env.BASE_URL}services-2026/store-management-2026.webp`,
-    alt: 'Unified ecommerce store management dashboard with parcels and product samples',
-    objectPosition: '50% center',
+    num: '06',
+    headline: 'MARKETING AUTOMATION',
+    desc: 'Klaviyo, Shopify Email, Shopify Flow, email campaigns, customer segmentation, abandoned checkout recovery, and retention automation.',
+    bullet: 'klaviyo flows & abandoned cart recovery',
   },
 ];
 
-/* 
-  Scroll-Linked Card Component 
-*/
-const ScrollLinkedCard: React.FC<{
-  service: typeof services[0];
-  index: number;
-  currentIndex: MotionValue<number>;
-  isMobile: boolean;
-}> = ({ service, index, currentIndex, isMobile }) => {
-  const offsetIndex = useTransform(currentIndex, (current) => index - current);
-
-  // yOffset: 
-  // If offset > 0 (future cards), they wait at the bottom of the screen.
-  // If offset < 0 (past cards), they move up slightly to stack behind.
-  const yOffset = useTransform(offsetIndex, (offset) => {
-    if (offset > 0) return offset * 1200; // Slide smoothly from far below screen
-    return offset * 40; // Move up (negative offset = negative Y) to form a stack
-  });
-
-  const scale = useTransform(offsetIndex, (offset) => {
-    if (offset > 0) return 1; // Stay full size while sliding up
-    return Math.max(1 + (offset * 0.05), 0.8); // Shrink as it gets pushed back
-  });
-
-  const opacity = useTransform(offsetIndex, (offset) => {
-    // Fade out slightly if it goes too far back, but keep mostly visible
-    if (offset < -3) return Math.max(1 + ((offset + 3) * 0.5), 0);
-    return 1;
-  });
-
-  const blurAmount = useTransform(offsetIndex, (offset) => {
-    if (isMobile) return 0; // see `filter` below — held at 0 so nothing downstream recomputes
-    if (offset < 0) return Math.abs(offset) * 2; // Blur background cards
-    return 0;
-  });
-
-  const filter = useTransform(blurAmount, (b) => `blur(${b}px)`);
-
-  return (
-    <motion.div
-      style={{
-        position: 'absolute',
-        left: '50%',
-        x: '-50%',
-        y: useTransform(yOffset, val => `calc(-50% + ${val}px)`),
-        scale,
-        opacity,
-        // A blur radius that changes with scroll has to be re-rendered every
-        // frame, for every card behind the current one — five full-card
-        // Gaussian blurs per frame is what made this crawl on a phone. The
-        // stack still reads through scale and the 40px step; only the few
-        // pixels of each card that peek out were ever blurred.
-        filter: isMobile ? undefined : filter,
-        zIndex: index, // HIGHER index means it renders ON TOP of previous cards!
-        transformOrigin: 'top center',
-      }}
-      className="absolute left-1/2 top-[58%] w-[calc(90*var(--vw))] max-w-[500px] overflow-hidden rounded-lg border border-white/10 bg-[#1a1a1a] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] md:top-[60%] md:max-w-3xl"
-    >
-      <div className="flex aspect-[4/5] md:aspect-[16/10] w-full flex-col relative overflow-hidden h-full max-h-[calc(70*var(--vh))]">
-         <img
-           src={service.image}
-           alt={service.alt}
-           loading="lazy"
-           decoding="async"
-           className="absolute inset-0 h-full w-full object-cover"
-           style={{ zIndex: 2, objectPosition: service.objectPosition }}
-         />
-         
-         {/* Dark overlay at bottom for text */}
-         <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/92 via-black/24 to-transparent" />
-         
-         {/* Text Content Overlay */}
-         <div className="absolute bottom-0 z-20 flex w-full flex-col items-center justify-end p-6 pb-8 text-center md:p-10 md:pb-10">
-           <h3 className="mb-2 font-display text-2xl font-bold leading-tight text-white drop-shadow-lg md:text-4xl">
-             {service.title}
-           </h3>
-           <p className="max-w-lg font-body text-sm leading-relaxed text-white/76 drop-shadow-md md:text-base">
-             {service.desc}
-           </p>
-         </div>
-      </div>
-    </motion.div>
-  );
-};
-
-/* ─── Services Section ─── */
 export const Services: React.FC = () => {
-  const sectionRef = useRef<HTMLElement>(null);
-  const isMobile = useIsMobileCanvas();
+  const [activeStep, setActiveStep] = useState(0);
+  const beatsRef = useRef<(HTMLElement | null)[]>([]);
+  const stickyRef = useRef<HTMLDivElement>(null);
 
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start start", "end end"],
-  });
-
-  // Apply a spring to the scroll progress to make the movement buttery smooth
-  // even if the user uses a stepped mouse wheel.
-  const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 100,
-    damping: 25,
-    mass: 0.5,
-    restDelta: 0.001
-  });
-
-  // A wheel arrives in jumps, so desktop is smoothed. A thumb does not: touch
-  // scrolling is already continuous, and running it through a spring only adds
-  // ~250ms of catch-up, which reads as the cards lagging behind the finger.
-  // Mobile therefore tracks the scroll position directly.
-  const progress = isMobile ? scrollYProgress : smoothProgress;
-
-  // We add a small buffer at the start (0.1) so the first card doesn't fly away instantly
-  // when the user arrives at the section. We also add a buffer at the end (0.9).
-  const currentIndex = useTransform(
-    progress,
-    [0, 0.1, 0.9, 1],
-    [0, 0, services.length - 1, services.length - 1]
-  );
+  useEffect(() => {
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const mobile = document.documentElement.dataset.canvas === 'mobile';
+      const stageBottom = mobile ? Math.max(0, stickyRef.current?.getBoundingClientRect().bottom ?? 0) : 0;
+      const focus = stageBottom + (window.innerHeight - stageBottom) * 0.5;
+      let nearest = 0;
+      let distance = Infinity;
+      beatsRef.current.forEach((beat, index) => {
+        if (!beat) return;
+        const rect = beat.getBoundingClientRect();
+        const nextDistance = Math.abs(rect.top + rect.height / 2 - focus);
+        if (nextDistance < distance) { nearest = index; distance = nextDistance; }
+      });
+      setActiveStep(nearest);
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+    const observer = new ResizeObserver(schedule);
+    if (stickyRef.current) observer.observe(stickyRef.current);
+    beatsRef.current.forEach(beat => { if (beat) observer.observe(beat); });
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    update();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+    };
+  }, []);
 
   return (
     <section
       id="services"
-      ref={sectionRef}
-      className="relative z-10 bg-black"
-      // Canvas-space viewport heights — raw `vh` would be scaled twice by the
-      // stage zoom and make the scroll track the wrong length.
-      style={{
-        height: `calc(${services.length * TRACK_PER_CARD[isMobile ? 'mobile' : 'desktop']} * var(--vh))`,
-      }}
+      className="craft-services mobile-seamless-section relative z-10 w-full bg-black text-white"
+      aria-labelledby="craft-heading"
+      data-active-step={activeStep}
     >
-
-      <div className="sticky top-0 h-[calc(100*var(--vh))] w-full overflow-hidden">
+      <div className="craft-services-grid">
         
-        {/* Header - Positioned naturally in the flex flow so it never overlaps the cards */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-[100] w-full pt-8 md:pt-12">
-          <ScrollReveal className="text-center">
-            <span className="mb-2 block font-ui text-[10px] font-semibold uppercase tracking-[0.25em] text-yellow md:mb-3 md:text-[11px]">
-              How I Help
-            </span>
-            <h2 className="font-serif-display text-[clamp(2.35rem,calc(5*var(--vw)),4.5rem)] font-bold leading-none tracking-tight text-white drop-shadow-[0_2px_14px_rgba(0,0,0,0.8)]">
-              My Services
+        {/* LEFT COLUMN: Sticky pinned viewport stage matching jeffmilanes.com */}
+        <div ref={stickyRef} className="craft-services-sticky">
+
+          {/* Top: 3D Particle Canvas with Mouse Repulsion Interaction */}
+          <div className="craft-services-visual">
+            <CraftParticleScene activeStep={activeStep} />
+          </div>
+
+          {/* Bottom: AT THE MACHINE Kicker & Progressive Terminal */}
+          <div className="craft-services-copy">
+            <p className="font-mono text-[11px] font-normal uppercase tracking-[2.42px] text-[#aaa]">
+              HOW THE WORK ACTUALLY HAPPENS
+            </p>
+
+            <h2
+              id="craft-heading"
+              className="mt-3 font-display font-extrabold text-[36px] sm:text-[40px] md:text-[44.8px] leading-[34.9px] tracking-[-3.14px] uppercase text-white"
+            >
+              MY SERVICES.
             </h2>
-          </ScrollReveal>
+
+            {/* Progressive Terminal: ONLY displays unlocked lines one-by-one as you scroll */}
+            <div
+              className="craft-services-terminal mt-5 font-mono text-[11px] sm:text-[12px] md:text-[13px] leading-relaxed"
+              role="status"
+              aria-live="polite"
+            >
+              <AnimatePresence>
+                {servicesData.slice(0, activeStep + 1).map((service, idx) => {
+                  const isCurrent = activeStep === idx;
+
+                  return (
+                    <motion.div
+                      key={service.num}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.35, ease: 'easeOut' }}
+                      className={`flex items-center gap-2 transition-colors duration-300 ${
+                        isCurrent
+                          ? 'text-[#aaa] font-normal'
+                          : 'text-[#777]'
+                      }`}
+                    >
+                      <span className="text-white">›</span>
+                      <span>{service.bullet}</span>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          </div>
         </div>
 
-        {/* Card Stack - Takes remaining space below header */}
-        <div className="relative h-full w-full">
-          {services.map((service, index) => (
-            <ScrollLinkedCard
-              key={service.title}
-              service={service}
-              index={index}
-              currentIndex={currentIndex}
-              isMobile={isMobile}
-            />
-          ))}
+        {/* RIGHT COLUMN: Naturally scrolling sequential articles (.craft-beats) */}
+        <div className="craft-services-beats">
+          {servicesData.map((service, index) => {
+            const isActive = activeStep === index;
+
+            return (
+              <article
+                key={service.num}
+                data-index={index}
+                ref={(el) => {
+                  beatsRef.current[index] = el;
+                }}
+                className={`craft-services-beat ${isActive ? 'is-active' : ''}`}
+              >
+                {/* Step Number: just 01, 02, etc. in Geist Mono */}
+                <p className="font-mono text-[11px] font-normal uppercase tracking-[2.42px] text-[#aaa]">
+                  {service.num}
+                </p>
+
+                {/* Big Step Headline: Archivo 800 with exact proportional scale */}
+                <h3
+                  className="craft-services-headline mt-4 font-display font-extrabold uppercase text-white"
+                  style={{
+                    fontSize: 'clamp(32px, calc(7 * var(--vw)), 83.2px)',
+                    lineHeight: '0.78',
+                    letterSpacing: '-0.07em',
+                  }}
+                >
+                  {service.headline}
+                </h3>
+
+                {/* Description matching jeffmilanes.com body */}
+                <p
+                  className="mt-6 max-w-md font-body text-sm leading-relaxed text-[#aaa]"
+                >
+                  {service.desc}
+                </p>
+              </article>
+            );
+          })}
         </div>
+
       </div>
     </section>
   );

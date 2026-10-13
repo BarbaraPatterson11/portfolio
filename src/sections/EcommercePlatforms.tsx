@@ -7,9 +7,7 @@ const platforms = [
   { name: 'Amazon', id: 'amazon.png' },
   { name: 'eBay', id: 'ebay.webp' },
   { name: 'Shopify', id: 'shopify.svg' },
-  { name: 'Walmart', id: 'walmart.png' },
   { name: 'Etsy', id: 'etsy.webp' },
-  { name: 'AliExpress', id: 'aliexpress.png' },
 ];
 
 
@@ -26,10 +24,10 @@ export const EcommercePlatforms: React.FC = () => {
       <div className="relative z-10 w-full mx-auto">
 
         {/* Infinite Marquee Section */}
-        <div className="w-full relative py-4 md:py-5 border-y border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden flex flex-col items-center">
+        <div className="relative flex w-full flex-col items-center overflow-hidden py-8 md:py-12">
           
           <ScrollReveal direction="up" duration={0.55} blur={false}>
-            <span className="font-ui text-[10px] md:text-xs font-semibold uppercase tracking-[0.3em] text-white/40 mb-3 z-20 relative block">
+            <span className="font-mono text-[10px] md:text-[11px] font-medium uppercase tracking-[0.28em] text-white/50 mb-4 z-20 relative block">
               E-Commerce Experience
             </span>
           </ScrollReveal>
@@ -60,7 +58,7 @@ export const EcommercePlatforms: React.FC = () => {
                     className="w-full h-full object-contain transition-all duration-500 group-hover:scale-110 drop-shadow-sm grayscale group-hover:grayscale-0"
                   />
                 </div>
-                <span className="font-ui text-xs font-semibold text-white/60 tracking-wider group-hover:text-white transition-colors duration-300">
+                <span className="font-mono text-xs uppercase tracking-wider text-white/50 group-hover:text-white transition-colors duration-300">
                   {platform.name}
                 </span>
               </div>

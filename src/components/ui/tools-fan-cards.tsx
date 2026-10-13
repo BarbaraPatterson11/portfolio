@@ -1,9 +1,25 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
-import { ChevronsLeft, ChevronsRight } from 'lucide-react';
+import {
+  ChevronsLeft,
+  ChevronsRight,
+  Code,
+  Database,
+  FileCode2,
+  FileSpreadsheet,
+  FlaskConical,
+  LineChart,
+  Mail,
+  Search,
+  Settings2,
+  TestTube2,
+  Workflow,
+  type LucideIcon,
+} from 'lucide-react';
 
 export interface ToolFanItem {
   name: string;
-  id: string;
+  id?: string;
+  icon?: NeutralToolIcon;
 }
 
 export interface ToolFanCategory {
@@ -24,6 +40,35 @@ const lightMonochromeIcons = new Set([
   'wordpress.svg',
   'capcut.svg',
 ]);
+
+type NeutralToolIcon =
+  | 'spreadsheet'
+  | 'data-sync'
+  | 'inventory'
+  | 'devtools'
+  | 'experiment'
+  | 'ab-test'
+  | 'clarity'
+  | 'search'
+  | 'analytics'
+  | 'mail'
+  | 'code-editor'
+  | 'liquid';
+
+const neutralToolIcons: Record<NeutralToolIcon, LucideIcon> = {
+  spreadsheet: FileSpreadsheet,
+  'data-sync': Workflow,
+  inventory: Database,
+  devtools: Settings2,
+  experiment: FlaskConical,
+  'ab-test': TestTube2,
+  clarity: Search,
+  search: Search,
+  analytics: LineChart,
+  mail: Mail,
+  'code-editor': FileCode2,
+  liquid: Code,
+};
 
 /* ── Mobile gallery geometry ───────────────────────────────────────────────
    Declared once and used by BOTH the stylesheet at the bottom of this file and
@@ -50,6 +95,35 @@ function CategoryTitle({ name }: { name: string }) {
       {parts[1]}
     </>
   );
+}
+
+function ToolIcon({
+  tool,
+  className,
+  decorative = false,
+}: {
+  tool: ToolFanItem;
+  className: string;
+  decorative?: boolean;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  if (tool.id && !imageFailed) {
+    return (
+      <img
+        src={`${import.meta.env.BASE_URL}icons/tools/${tool.id}`}
+        alt={decorative ? '' : tool.name}
+        aria-hidden={decorative ? true : undefined}
+        onError={() => setImageFailed(true)}
+        loading="lazy"
+        decoding="async"
+        className={className}
+      />
+    );
+  }
+
+  const Icon = neutralToolIcons[tool.icon ?? 'devtools'];
+  return <Icon className={className} aria-hidden={decorative} aria-label={decorative ? undefined : tool.name} />;
 }
 
 export function ToolsFanCards({ categories }: ToolsFanCardsProps) {
@@ -190,19 +264,16 @@ export function ToolsFanCards({ categories }: ToolsFanCardsProps) {
                   {category.tools.map((tool) => (
                     <span
                       key={tool.name}
-                      className="tools-chip flex min-w-0 flex-col items-center justify-start gap-1 rounded-[9px] border border-white/10 bg-white/20 px-1 py-1.5 shadow-[0_8px_22px_rgba(0,0,0,0.18)] backdrop-blur-sm"
+                      className="tools-chip flex min-w-0 flex-col items-center justify-start gap-1 rounded-[9px] border border-white/12 bg-white/[0.11] px-1 py-1.5 shadow-[0_8px_22px_rgba(0,0,0,0.14)] backdrop-blur-sm"
                       title={tool.name}
                     >
-                      <img
-                        src={`${import.meta.env.BASE_URL}icons/tools/${tool.id}`}
-                        alt={tool.name}
-                        loading="lazy"
-                        decoding="async"
+                      <ToolIcon
+                        tool={tool}
                         className={`h-[18px] w-[18px] object-contain opacity-75 sm:h-5 sm:w-5 ${
-                          lightMonochromeIcons.has(tool.id) ? 'brightness-0' : ''
+                          tool.id && lightMonochromeIcons.has(tool.id) ? 'brightness-0' : ''
                         }`}
                       />
-                      <span className="line-clamp-2 min-h-[14px] w-full text-center font-body text-[6.5px] font-semibold leading-[1.05] text-white/95 sm:text-[7px]">
+                      <span className="line-clamp-2 min-h-[14px] w-full text-center font-mono text-[6.5px] font-normal uppercase leading-[1.05] tracking-[0.04em] text-white/95 sm:text-[7px]">
                         {tool.name}
                       </span>
                     </span>
@@ -210,14 +281,14 @@ export function ToolsFanCards({ categories }: ToolsFanCardsProps) {
                 </span>
 
                 <span
-                  className={`tools-card-fade font-body text-[10px] font-medium uppercase tracking-[0.18em] text-white/65 transition-all duration-500 ${
+                  className={`tools-card-fade font-mono text-[10px] font-normal uppercase tracking-[0.22em] text-white/65 transition-all duration-500 ${
                     isExpanded ? 'opacity-100' : 'opacity-0'
                   }`}
                 >
                   {String(index + 1).padStart(2, '0')} / {category.tools.length} tools
                 </span>
                 <span
-                  className={`tools-card-fade mt-1 block font-heading font-semibold leading-tight text-white transition-all duration-500 ${
+                  className={`tools-card-fade mt-1 block font-display font-semibold leading-tight tracking-[-0.025em] text-white transition-all duration-500 ${
                     isExpanded ? 'text-2xl opacity-100 sm:text-3xl' : 'text-lg opacity-0'
                   }`}
                 >
@@ -237,19 +308,18 @@ export function ToolsFanCards({ categories }: ToolsFanCardsProps) {
                   isExpanded ? 'pointer-events-none opacity-0' : 'opacity-100'
                 }`}
               >
-                <span className="tools-chip mb-3 flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/40 shadow-lg backdrop-blur-sm">
-                  <img
-                    src={`${import.meta.env.BASE_URL}icons/tools/${category.tools[0].id}`}
-                    alt=""
-                    aria-hidden="true"
-                    loading="lazy"
-                    decoding="async"
-                    className={`h-6 w-6 object-contain opacity-75 ${
-                      lightMonochromeIcons.has(category.tools[0].id) ? 'brightness-0' : ''
+                <span className="tools-chip mb-3 flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/[0.2] shadow-lg backdrop-blur-sm">
+                  <ToolIcon
+                    tool={category.tools[0]}
+                    decorative
+                    className={`h-6 w-6 object-contain opacity-90 ${
+                      category.tools[0].id && lightMonochromeIcons.has(category.tools[0].id)
+                        ? 'brightness-0'
+                        : ''
                     }`}
                   />
                 </span>
-                <span className="font-body text-[9px] font-semibold uppercase tracking-[0.16em] text-white [writing-mode:vertical-rl] [text-shadow:0_2px_10px_rgba(0,0,0,0.95)]">
+                <span className="font-mono text-[9px] font-normal uppercase tracking-[0.22em] text-white [writing-mode:vertical-rl] [text-shadow:0_2px_10px_rgba(0,0,0,0.95)]">
                   {category.shortName}
                 </span>
               </span>
@@ -281,7 +351,7 @@ export function ToolsFanCards({ categories }: ToolsFanCardsProps) {
       )}
 
       <div className="pointer-events-none absolute inset-x-0 -bottom-8 flex items-center justify-center md:hidden">
-        <span className="font-body text-[9px] font-semibold uppercase tracking-[0.2em] text-white/70">
+        <span className="font-mono text-[9px] font-normal uppercase tracking-[0.2em] text-white/70">
           Swipe to explore
         </span>
       </div>

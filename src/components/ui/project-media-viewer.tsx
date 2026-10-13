@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Volume2, VolumeX, X } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, ChevronLeft, ChevronRight, Volume2, VolumeX, X } from 'lucide-react';
 import { useViewport } from '../../hooks/useViewport';
 
 export interface ProjectMedia {
@@ -11,6 +11,10 @@ export interface ProjectMedia {
   alt: string;
   label?: string;
   orientation: 'portrait' | 'landscape';
+  /** Project name shown under the media, with a link button. Omit for the plain video carousel. */
+  name?: string;
+  link?: string;
+  linkLabel?: string;
 }
 
 export interface ProjectViewerData {
@@ -25,28 +29,32 @@ export interface ProjectViewerData {
 
 interface ProjectMediaViewerProps {
   project: ProjectViewerData | null;
+  initialIndex?: number;
   originRect: DOMRect | null;
   onClose: () => void;
 }
 
 export const ProjectMediaViewer: React.FC<ProjectMediaViewerProps> = ({
   project,
+  initialIndex = 0,
   onClose,
 }) => {
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(() => Math.max(0, initialIndex));
   const [isMuted, setIsMuted] = useState(false);
   const [waitingForPlay, setWaitingForPlay] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [scrolledImageId, setScrolledImageId] = useState<string | null>(null);
   // The viewer renders inside the design canvas, so it must measure itself in
   // canvas units — otherwise the media would be sized against raw screen pixels
   // and end up a different size on every monitor.
   const canvas = useViewport();
   const viewportSize = { width: canvas.designWidth, height: canvas.stageHeight };
-  const activeIndexRef = useRef(0);
+  const activeIndexRef = useRef(Math.max(0, initialIndex));
   const closeTimerRef = useRef<number | null>(null);
   const closingRef = useRef(false);
   const swipeStartXRef = useRef<number | null>(null);
   const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
+  const imageScrollRef = useRef<HTMLDivElement | null>(null);
 
   const requestClose = React.useCallback(() => {
     if (closingRef.current) return;
@@ -58,6 +66,10 @@ export const ProjectMediaViewer: React.FC<ProjectMediaViewerProps> = ({
   useEffect(() => () => {
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
   }, []);
+
+  useEffect(() => {
+    imageScrollRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [activeIndex, project]);
 
   useEffect(() => {
     if (!project) return;
@@ -149,7 +161,11 @@ export const ProjectMediaViewer: React.FC<ProjectMediaViewerProps> = ({
       return { width, height };
     }
 
-    let width = Math.min(availableWidth, 1180);
+    // Leave enough breathing room for the pagination and the linked project
+    // name below long storefront screenshots, so the title never gets clipped
+    // by the fixed viewer viewport.
+    const landscapeWidthCap = media.type === 'image' && media.name ? 1080 : 1180;
+    let width = Math.min(availableWidth, landscapeWidthCap);
     let height = width * 10 / 16;
     if (height > availableHeight) {
       height = availableHeight;
@@ -158,8 +174,9 @@ export const ProjectMediaViewer: React.FC<ProjectMediaViewerProps> = ({
     return { width, height };
   };
 
-  const targetSize = project
-    ? getTargetSize(project.media[activeIndex])
+  const activeMedia = project?.media[activeIndex] ?? null;
+  const targetSize = activeMedia
+    ? getTargetSize(activeMedia)
     : { width: 0, height: 0 };
   const isMobile = canvas.mode === 'mobile';
 
@@ -254,7 +271,7 @@ export const ProjectMediaViewer: React.FC<ProjectMediaViewerProps> = ({
           transition={{ duration: 0.24 }}
           role="dialog"
           aria-modal="true"
-          aria-label={`${project.title} video carousel`}
+          aria-label={`${project.title} project media viewer`}
         >
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.065),transparent_58%)]" />
 
@@ -262,7 +279,7 @@ export const ProjectMediaViewer: React.FC<ProjectMediaViewerProps> = ({
             type="button"
             onClick={requestClose}
             className="absolute right-4 top-4 z-[80] flex h-10 w-10 items-center justify-center rounded-full border border-white/16 bg-black/36 text-white/80 backdrop-blur-md transition-all hover:rotate-90 hover:bg-white hover:text-black sm:right-7 sm:top-6 sm:h-11 sm:w-11"
-            aria-label="Close video carousel"
+            aria-label="Close project media viewer"
             title="Close"
           >
             <X className="h-5 w-5" />
@@ -273,7 +290,7 @@ export const ProjectMediaViewer: React.FC<ProjectMediaViewerProps> = ({
               type="button"
               onClick={showPrevious}
               className="absolute left-3 z-[70] flex h-11 w-11 items-center justify-center rounded-full border border-white/18 bg-black/38 text-white backdrop-blur-md transition-all hover:scale-105 hover:bg-white hover:text-black sm:left-8 sm:h-12 sm:w-12"
-              aria-label="Previous video"
+              aria-label="Previous project"
               title="Previous"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -353,7 +370,25 @@ export const ProjectMediaViewer: React.FC<ProjectMediaViewerProps> = ({
                         }}
                       />
                     ) : (
-                      <img src={media.src} alt={media.alt} className="h-full w-full object-cover" />
+                      <div
+                        ref={(element) => {
+                          if (isActive) imageScrollRef.current = element;
+                        }}
+                        className="h-full w-full overflow-x-hidden overflow-y-auto overscroll-contain bg-[#090909]"
+                        onScroll={(event) => {
+                          if (isActive) {
+                            setScrolledImageId(event.currentTarget.scrollTop > 10 ? media.id : null);
+                          }
+                        }}
+                        aria-label={`${media.alt}. Scroll to view the full image.`}
+                      >
+                        <img
+                          src={media.src}
+                          alt={media.alt}
+                          draggable={false}
+                          className="block h-auto min-h-full w-full object-contain object-top"
+                        />
+                      </div>
                     )}
 
                     {!isActive && (
@@ -403,40 +438,73 @@ export const ProjectMediaViewer: React.FC<ProjectMediaViewerProps> = ({
                       </>
                     )}
 
+                    {isActive && media.type === 'image' && scrolledImageId !== media.id && (
+                      <div className="pointer-events-none absolute bottom-16 left-1/2 z-[60] flex -translate-x-1/2 flex-col items-center gap-0 rounded-full border border-black/10 bg-white/95 px-3.5 py-1 text-[#171717] opacity-100 shadow-[0_3px_12px_rgba(0,0,0,0.28)] sm:bottom-5">
+                        <span className="whitespace-nowrap font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-black">
+                          Scroll to explore
+                        </span>
+                        <ChevronDown className="h-4 w-4 animate-bounce text-black" />
+                      </div>
+                    )}
+
                   </motion.div>
                 );
               })}
 
-              {project.media.length > 1 && (
-                <div
-                  className="absolute left-1/2 top-full z-[65] mt-3 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/10 bg-black/38 px-2.5 py-2 shadow-lg backdrop-blur-md"
-                  aria-label="Video position"
-                >
-                  {project.media.map((item, paginationIndex) => {
-                    const isCurrent = paginationIndex === activeIndex;
+              <div className="absolute left-1/2 top-full z-[65] mt-3 flex -translate-x-1/2 flex-col items-center gap-3">
+                {project.media.length > 1 && (
+                  <div
+                    className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/38 px-2.5 py-2 shadow-lg backdrop-blur-md"
+                    aria-label="Media position"
+                  >
+                    {project.media.map((item, paginationIndex) => {
+                      const isCurrent = paginationIndex === activeIndex;
 
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => goToIndex(paginationIndex)}
-                        className={`h-1.5 rounded-full transition-[width,background-color] duration-300 ${
-                          isCurrent ? 'w-4 bg-white' : 'w-1.5 bg-white/38 hover:bg-white/70'
-                        }`}
-                        aria-label={`Open video ${paginationIndex + 1}`}
-                        aria-current={isCurrent ? 'true' : undefined}
-                      />
-                    );
-                  })}
-                </div>
-              )}
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => goToIndex(paginationIndex)}
+                          className={`h-1.5 rounded-full transition-[width,background-color] duration-300 ${
+                            isCurrent ? 'w-4 bg-white' : 'w-1.5 bg-white/38 hover:bg-white/70'
+                          }`}
+                          aria-label={`Open media ${paginationIndex + 1}`}
+                          aria-current={isCurrent ? 'true' : undefined}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+
+                {activeMedia && activeMedia.name && (
+                  <div className="relative flex w-[min(86vw,1180px)] flex-col items-center gap-2.5 text-center sm:min-h-10 sm:flex-row sm:justify-center">
+                    {activeMedia.link ? (
+                      <a
+                        href={activeMedia.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(event) => event.stopPropagation()}
+                        className="group/project-link inline-flex items-center gap-2 font-display text-2xl font-extrabold uppercase leading-none tracking-[-0.05em] text-white transition-[transform,opacity] duration-200 hover:-translate-y-0.5 hover:opacity-80 active:translate-y-0 sm:text-4xl"
+                        aria-label={`${activeMedia.name} — ${activeMedia.linkLabel ?? 'Open project'}`}
+                      >
+                        <span>{activeMedia.name}</span>
+                        <ArrowUpRight className="h-5 w-5 shrink-0 transition-transform duration-200 group-hover/project-link:translate-x-0.5 group-hover/project-link:-translate-y-0.5 sm:h-7 sm:w-7" strokeWidth={2.5} />
+                      </a>
+                    ) : (
+                      <span className="font-heading text-2xl font-extrabold uppercase leading-none tracking-[-0.06em] text-white sm:text-4xl">
+                        {activeMedia.name}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <button
               type="button"
               onClick={showNext}
               className="absolute right-3 z-[70] flex h-11 w-11 items-center justify-center rounded-full border border-white/18 bg-black/38 text-white backdrop-blur-md transition-all hover:scale-105 hover:bg-white hover:text-black sm:right-8 sm:h-12 sm:w-12"
-              aria-label="Next video"
+              aria-label="Next project"
               title="Next"
             >
               <ChevronRight className="h-5 w-5" />

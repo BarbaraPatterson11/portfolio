@@ -73,10 +73,6 @@ export interface SiteData {
   portfolio: PortfolioItem[];
   skills: SkillCategory[];
   certifications: Certification[];
-  whyHireMe: {
-    headline: string;
-    points: string[];
-  };
   contact: {
     headline: string;
     subtext: string;

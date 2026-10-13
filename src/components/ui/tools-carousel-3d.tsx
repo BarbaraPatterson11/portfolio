@@ -33,9 +33,7 @@ export const ToolsCarousel3D: React.FC<ToolsCarousel3DProps> = ({ categories }) 
   const mouse = useRef({ x: 0, y: 0, targetX: 0, targetY: 0 });
   const containerH = useRef<number>(750);
   const isVisible = useRef<boolean>(true);
-  const [allowVideoLoad, setAllowVideoLoad] = useState(() => (
-    typeof window !== 'undefined' ? window.matchMedia('(min-width: 810px)').matches : true
-  ));
+  const [allowVideoLoad] = useState(true);
 
   // Click-to-advance: uses speed boost instead of lerp so the natural
   // smoothstep/magnetic-dwell animation plays at accelerated speed
@@ -75,7 +73,6 @@ export const ToolsCarousel3D: React.FC<ToolsCarousel3DProps> = ({ categories }) 
     const observer = new IntersectionObserver(
       ([entry]) => {
         isVisible.current = entry.isIntersecting;
-        if (entry.isIntersecting) setAllowVideoLoad(true);
       },
       { threshold: 0.05 }
     );
