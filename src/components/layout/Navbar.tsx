@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { scrollToPosition } from '../../lib/smoothScroll';
 
@@ -20,11 +20,25 @@ export interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ isVisible = true }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const logoSrc = `${import.meta.env.BASE_URL}logo.png`;
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const root = document.documentElement;
+    const previousOverflow = root.style.overflow;
+    root.style.overflow = 'hidden';
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobileOpen(false);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      root.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [mobileOpen]);
 
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-50 flex h-[64px] items-center justify-between px-5 sm:h-[72px] sm:px-10 md:px-14 pointer-events-none text-white transition-opacity duration-300 ${
+        className={`site-navbar fixed top-0 left-0 right-0 z-50 flex h-[72px] items-center justify-between px-5 sm:px-10 md:px-14 pointer-events-none text-white transition-opacity duration-300 ${
           isVisible ? 'opacity-100' : 'opacity-100'
         }`}
       >
@@ -37,7 +51,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isVisible = true }) => {
           <img
             src={logoSrc}
             alt="Frank"
-            className="h-7 sm:h-9 md:h-11 w-auto object-contain filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
+            className="site-brand-image h-[32.8px] sm:h-9 md:h-11 w-auto object-contain"
           />
         </a>
 
@@ -60,6 +74,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isVisible = true }) => {
             className="sm:hidden flex h-10 w-10 flex-col items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/70"
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileOpen}
+            aria-controls="mobile-navigation"
           >
             <motion.span
               animate={mobileOpen ? { rotate: 45, y: 6 } : { rotate: 0, y: 0 }}
@@ -81,13 +96,14 @@ export const Navbar: React.FC<NavbarProps> = ({ isVisible = true }) => {
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
+            id="mobile-navigation"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.25 }}
-            className="fixed inset-0 z-40 bg-black/95 backdrop-blur-xl pt-24 px-8 flex flex-col justify-between pb-10"
+            className="mobile-nav-drawer fixed inset-0 z-40 bg-black pt-24 px-5 flex flex-col justify-between pb-10 overflow-y-auto"
           >
-            <nav className="flex flex-col gap-3 mt-6">
+            <nav aria-label="Mobile navigation" className="flex flex-col gap-1 mt-2">
               {navLinks.map((link) => (
                 <a
                   key={link.label}
@@ -98,7 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isVisible = true }) => {
                     const target = document.querySelector(link.href);
                     if (target) scrollToPosition(target.getBoundingClientRect().top + window.scrollY);
                   }}
-                  className="font-display font-extrabold text-3xl uppercase tracking-[-0.05em] text-white hover:text-white/70 py-2 border-b border-white/5 transition-colors"
+                  className="font-display font-extrabold text-[24px] leading-[1.1] uppercase tracking-[-0.055em] text-white hover:text-white/70 py-3 border-b border-white/10 transition-colors"
                 >
                   {link.label}
                 </a>
@@ -107,7 +123,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isVisible = true }) => {
 
             <a
               href={`mailto:${EMAIL_ADDRESS}`}
-              className="font-mono text-xs tracking-[0.16em] text-white/70 hover:text-white uppercase text-center py-3 transition-opacity duration-200"
+              className="font-mono text-[10px] leading-normal tracking-[0.14em] text-[#aaa] hover:text-white uppercase text-left py-3 transition-opacity duration-200"
             >
               {EMAIL_ADDRESS}
             </a>

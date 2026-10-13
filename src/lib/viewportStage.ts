@@ -293,8 +293,10 @@ const hasChanged = (a: ViewportState, b: ViewportState) =>
 
 /** True when the page has to be re-measured by scroll/animation engines. */
 const needsRelayout = (a: ViewportState, b: ViewportState) =>
-  a.mode !== b.mode || a.zoom !== b.zoom || a.stageHeight !== b.stageHeight ||
-  a.heroFill !== b.heroFill || a.measured !== b.measured;
+  a.mode !== b.mode || a.zoom !== b.zoom || a.screenWidth !== b.screenWidth ||
+  a.measured !== b.measured ||
+  // Address-bar motion on phones must not refresh a pinned scene mid-gesture.
+  (b.mode === 'desktop' && (a.stageHeight !== b.stageHeight || a.heroFill !== b.heroFill));
 
 const relayoutListeners = new Set<() => void>();
 

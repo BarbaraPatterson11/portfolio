@@ -27,6 +27,8 @@ export function VideoText({
 }: VideoTextProps) {
   const maskId = React.useId();
   const videoRef = React.useRef<HTMLVideoElement>(null);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const nearViewport = React.useRef(false);
   const [isVideoReady, setIsVideoReady] = React.useState(false);
 
   React.useEffect(() => {
@@ -34,12 +36,15 @@ export function VideoText({
     if (!video) return;
 
     const attemptPlay = () => {
+      if (!nearViewport.current || document.hidden) return;
+      video.preload = 'auto';
       video.muted = true;
       video.play().catch(() => undefined);
     };
 
     const observer = new IntersectionObserver(
       ([entry]) => {
+        nearViewport.current = entry.isIntersecting;
         if (entry.isIntersecting) attemptPlay();
         else video.pause();
       },
@@ -48,9 +53,10 @@ export function VideoText({
 
     const handleVisibility = () => {
       if (!document.hidden) attemptPlay();
+      else video.pause();
     };
 
-    observer.observe(video);
+    if (containerRef.current) observer.observe(containerRef.current);
     document.addEventListener("visibilitychange", handleVisibility);
     video.addEventListener("canplay", attemptPlay);
 
@@ -62,7 +68,7 @@ export function VideoText({
   }, []);
 
   return (
-    <div className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-black pointer-events-none ${className}`}>
+    <div ref={containerRef} className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-black pointer-events-none ${className}`}>
       <svg className="absolute inset-0 h-full w-full" aria-label={`${String(children)} animated video title`}>
         <defs>
           {/* userSpaceOnUse with a generous region: the default
@@ -114,11 +120,10 @@ export function VideoText({
             >
               <video
                 ref={videoRef}
-                autoPlay
                 loop
                 muted
                 playsInline
-                preload="auto"
+                preload="none"
                 onCanPlay={() => setIsVideoReady(true)}
                 onLoadedData={() => setIsVideoReady(true)}
                 onPlaying={() => setIsVideoReady(true)}

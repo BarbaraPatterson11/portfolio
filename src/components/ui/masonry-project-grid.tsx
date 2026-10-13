@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ProjectImageSlideshow } from './ProjectImageSlideshow';
 import {
   ProjectMediaViewer,
   type ProjectViewerData,
@@ -11,17 +12,17 @@ const artazestImage = asset('projects/landscape-showcase/artazest-storefront.web
 const velvetMarketImage = asset('projects/landscape-showcase/velvet-market.webp');
 const myshopifyImage = asset('projects/landscape-showcase/myshopify-storefront.webp');
 const analyticsImages = [
-  { src: asset('projects/analytics-showcase/analytics-period-01.png'), alt: 'Shopify analytics report showing sales, orders, conversion, and revenue trend' },
-  { src: asset('projects/analytics-showcase/analytics-period-02.png'), alt: 'Shopify analytics report for a second date range' },
-  { src: asset('projects/analytics-showcase/analytics-daily-overview.png'), alt: 'Shopify daily sales and order performance analytics report' },
-  { src: asset('projects/analytics-showcase/analytics-period-03.png'), alt: 'Shopify analytics report showing sales trend from September to October' },
-  { src: asset('projects/analytics-showcase/analytics-period-04.png'), alt: 'Shopify analytics report showing sales trend from November to December' },
+  { src: asset('projects/analytics-showcase/analytics-period-01.webp'), alt: 'Shopify analytics report showing sales, orders, conversion, and revenue trend' },
+  { src: asset('projects/analytics-showcase/analytics-period-02.webp'), alt: 'Shopify analytics report for a second date range' },
+  { src: asset('projects/analytics-showcase/analytics-daily-overview.webp'), alt: 'Shopify daily sales and order performance analytics report' },
+  { src: asset('projects/analytics-showcase/analytics-period-03.webp'), alt: 'Shopify analytics report showing sales trend from September to October' },
+  { src: asset('projects/analytics-showcase/analytics-period-04.webp'), alt: 'Shopify analytics report showing sales trend from November to December' },
 ] as const;
 const campaignImages = [
-  { src: asset('projects/campaign-showcase/campaign-01.png'), alt: 'Campaign project image 1' },
-  { src: asset('projects/campaign-showcase/campaign-02.png'), alt: 'Campaign project image 2' },
-  { src: asset('projects/campaign-showcase/campaign-03.png'), alt: 'Campaign project image 3' },
-  { src: asset('projects/campaign-showcase/campaign-04.png'), alt: 'Campaign project image 4' },
+  { src: asset('projects/campaign-showcase/campaign-01.webp'), alt: 'Campaign project image 1' },
+  { src: asset('projects/campaign-showcase/campaign-02.webp'), alt: 'Campaign project image 2' },
+  { src: asset('projects/campaign-showcase/campaign-03.webp'), alt: 'Campaign project image 3' },
+  { src: asset('projects/campaign-showcase/campaign-04.webp'), alt: 'Campaign project image 4' },
 ] as const;
 const videoCreatives = [
   { id: 'ugc-ad-01', src: asset('projects/marketplace-operations/project-video-01.mp4'), label: 'Beauty UGC', alt: 'Beauty product e-commerce video creative' },
@@ -91,55 +92,12 @@ const landscapeShowcase: ProjectViewerData = {
   ],
 };
 
-const revealOrder = [0, 1, 2, 3, 4, 5];
-
 export function MasonryProjectGrid() {
   const gridRef = useRef<HTMLDivElement>(null);
-  const [hasEntered, setHasEntered] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-  );
   const [selectedProject, setSelectedProject] = useState<ProjectViewerData | null>(null);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState(0);
   const [landscapePreviewIndex, setLandscapePreviewIndex] = useState(0);
-  const [analyticsPreviewIndex, setAnalyticsPreviewIndex] = useState(0);
-  const [campaignPreviewIndex, setCampaignPreviewIndex] = useState(0);
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
-
-  useEffect(() => {
-    const grid = gridRef.current;
-    if (!grid) return;
-
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setHasEntered(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: '0px 0px -8% 0px', threshold: 0.08 },
-    );
-
-    observer.observe(grid);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setAnalyticsPreviewIndex((index) => (index + 1) % analyticsImages.length);
-    }, 7000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setCampaignPreviewIndex((index) => (index + 1) % campaignImages.length);
-    }, 7000);
-    return () => window.clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     const grid = gridRef.current;
@@ -151,14 +109,14 @@ export function MasonryProjectGrid() {
       entries.forEach(({ target, isIntersecting }) => {
         const video = target as HTMLVideoElement;
         if (isIntersecting && !document.hidden) {
-          video.preload = 'metadata';
+          video.preload = 'auto';
           video.playbackRate = 0.8;
           video.play().catch(() => undefined);
         } else {
           video.pause();
         }
       });
-    }, { rootMargin: '120px 0px', threshold: 0.12 });
+    }, { rootMargin: '320px 0px', threshold: 0.01 });
 
     videos.forEach(video => observer.observe(video));
     const onVisibilityChange = () => {
@@ -178,14 +136,6 @@ export function MasonryProjectGrid() {
       videos.forEach(video => video.pause());
     };
   }, []);
-
-  const revealStyle = (index: number): React.CSSProperties => ({
-    opacity: hasEntered ? 1 : 0,
-    transform: hasEntered ? 'translateY(0)' : 'translateY(20px)',
-    animation: hasEntered
-      ? `project-masonry-appear 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${(revealOrder[index] / revealOrder.length).toFixed(3)}s both`
-      : undefined,
-  });
 
   const landscapePreview = landscapeShowcase.media[landscapePreviewIndex];
   const projectTitle = (
@@ -214,7 +164,6 @@ export function MasonryProjectGrid() {
       >
         <div className="project-masonry-item group relative mx-auto aspect-[16/10] w-full overflow-hidden rounded-xl border border-white/[0.08] bg-[#090909] text-left shadow-[0_18px_50px_rgba(0,0,0,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:h-[430px] sm:aspect-auto lg:h-[480px]"
           role="button" tabIndex={0}
-          style={revealStyle(0)}
           onClick={(event) => {
             if ((event.target as HTMLElement).closest('button, a')) return;
             openProject(landscapeShowcase, landscapePreviewIndex, event.currentTarget.getBoundingClientRect());
@@ -230,8 +179,12 @@ export function MasonryProjectGrid() {
         >
             <img
               key={landscapePreview.id}
-              src={landscapePreview.src}
+              src={asset(`projects/previews/${landscapePreview.id}.webp`)}
               alt={landscapePreview.alt}
+              loading="lazy"
+              decoding="async"
+              width={960}
+              height={600}
               className="h-full w-full object-cover object-top transition-transform duration-500 ease-out group-hover:scale-[1.035]"
             />
             <span className="pointer-events-none absolute inset-0 bg-black/10" />
@@ -300,17 +253,17 @@ export function MasonryProjectGrid() {
                 key={video.id}
                 type="button"
                 className="project-masonry-item group/video relative aspect-[9/14] w-full overflow-hidden rounded-xl border border-white/10 bg-[#0b0b0b] text-left shadow-[0_14px_40px_rgba(0,0,0,0.32)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-                style={revealStyle(index + 1)}
                 onClick={(event) => openProject(videoShowcase, index, event.currentTarget.getBoundingClientRect())}
                 aria-label={`Play ${video.label}`}
               >
                 <video
                   data-portfolio-preview
-                  src={video.src}
+                  src={asset(`projects/previews/video-${String(index + 1).padStart(2, '0')}.mp4`)}
+                  poster={asset(`projects/previews/video-${String(index + 1).padStart(2, '0')}.webp`)}
                   muted
                   loop
                   playsInline
-                  preload="none"
+                  preload="metadata"
                   className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover/video:scale-[1.035]"
                 />
               </button>
@@ -319,23 +272,8 @@ export function MasonryProjectGrid() {
         </section>
 
         <section className="mx-auto mt-4 grid w-full grid-cols-1 gap-4 sm:mt-7 sm:grid-cols-2 sm:gap-5" aria-label="Additional project image showcases">
-          {[
-            { number: '01', images: analyticsImages, previewIndex: analyticsPreviewIndex },
-            { number: '02', images: campaignImages, previewIndex: campaignPreviewIndex },
-          ].map((holder) => (
-            <figure
-              key={holder.number}
-              className="group relative flex aspect-[1.6/1] min-h-[190px] w-full items-center justify-center overflow-hidden rounded-2xl sm:min-h-0"
-              aria-label={`Project image showcase ${holder.number}`}
-            >
-              <img
-                key={holder.images[holder.previewIndex].src}
-                src={holder.images[holder.previewIndex].src}
-                alt={holder.images[holder.previewIndex].alt}
-                className="absolute inset-0 h-full w-full animate-[analytics-image-fade_900ms_ease_both] object-cover"
-              />
-            </figure>
-          ))}
+          <ProjectImageSlideshow images={analyticsImages} label="Project image showcase 01" />
+          <ProjectImageSlideshow images={campaignImages} label="Project image showcase 02" />
         </section>
 
       </div>
@@ -353,16 +291,6 @@ export function MasonryProjectGrid() {
       />
 
       <style>{`
-        @keyframes project-masonry-appear {
-          0% { opacity: 0; transform: translateY(20px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes analytics-image-fade {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
         @media (prefers-reduced-motion: reduce) {
           .project-masonry-item {
             animation: none !important;

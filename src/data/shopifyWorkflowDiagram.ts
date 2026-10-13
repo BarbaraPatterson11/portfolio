@@ -18,14 +18,14 @@ const mobileLabels: Record<string, string> = {
   'MARKETING AUTOMATION': 'AUTOMATION', 'STORE OPERATIONS': 'OPERATIONS',
 };
 
-export function buildWorkflowDiagram(widths: Record<string,number> = {}, compact = false) {
+export function buildWorkflowDiagram(widths: Record<string,number> = {}, compact = false, compactHeight = 422) {
   const center = compact ? 186 : 500;
   const gap = compact ? 10 : WORKFLOW_NODE_GAP;
   const nodes = WORKFLOW_PHASES.flatMap((phase, index) => {
     const row = phase.nodes.map((label,n) => ({
       id: `${phase.id}-${n}`, phase:index, label: compact ? (mobileLabels[label] ?? label) : label,
       width:widths[`${phase.id}-${n}`] ?? Math.ceil((compact ? (mobileLabels[label] ?? label).length * 6 + 26 : label.length*9.5+34)),
-      arrive:arrivals[index][n], x:0, y:compact ? 36 + index * 68 : WORKFLOW_ROW_Y[index],
+      arrive:arrivals[index][n], x:0, y:compact ? 36 + index * ((compactHeight - 82) / 5) : WORKFLOW_ROW_Y[index],
     }));
     const totalWidth = row.reduce((sum,node)=>sum+node.width,0) + (row.length-1)*gap;
     let left = center-totalWidth/2;

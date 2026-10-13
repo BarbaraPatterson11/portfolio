@@ -14,7 +14,7 @@ export const Portfolio: React.FC = () => {
 
   return (
     <section id="portfolio" className="mobile-seamless-section relative w-full overflow-hidden bg-black py-10 sm:py-14 md:py-16">
-      <ScrollReveal blur={false} className="relative z-10 mx-auto mb-9 w-full max-w-6xl px-4 sm:mb-12 md:mb-16">
+      <ScrollReveal blur={false} direction="none" duration={0.3} amount={0.01} className="relative z-10 mx-auto mb-9 w-full max-w-6xl px-4 sm:mb-12 md:mb-16">
         <div className="relative h-[128px] w-full overflow-hidden sm:h-[150px] md:h-[250px]">
           <VideoText
             src={videoSrc}

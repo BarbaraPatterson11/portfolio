@@ -12,6 +12,7 @@ import { EcommerceArchitectureGraph } from '../components/ui/EcommerceArchitectu
 import { WorkflowPhaseCounter } from '../components/ui/WorkflowPhaseCounter';
 import { ShopifyWorkflowReadable } from '../components/ui/ShopifyWorkflowReadable';
 import { WORKFLOW_PHASES, getWorkflowState } from '../data/shopifyWorkflow';
+import { WORKFLOW_NODES, nodeConnected } from '../data/shopifyWorkflowDiagram';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -31,7 +32,11 @@ export const Hero: React.FC<HeroProps> = ({ isLoaded }) => {
   const [workflowState, setWorkflowState] = useState(() => getWorkflowState(0));
   const commitWorkflow = useCallback((progress: number) => {
     const next = getWorkflowState(progress);
-    setWorkflowState(previous => previous.progress === next.progress ? previous : next);
+    setWorkflowState(previous => {
+      const sameNodes = WORKFLOW_NODES.every(node => nodeConnected(node, previous) === nodeConnected(node, next));
+      const sameLoop = next.activePhase !== 5 || Math.round(previous.phaseProgress * 100) === Math.round(next.phaseProgress * 100);
+      return previous.activePhase === next.activePhase && sameNodes && sameLoop ? previous : next;
+    });
   }, []);
   const reducedMotion = useReducedMotion();
   const { mode: canvasMode } = useViewport();
@@ -145,7 +150,7 @@ export const Hero: React.FC<HeroProps> = ({ isLoaded }) => {
           trigger: workflowSceneRef.current,
           start: 'top top',
           end: 'bottom bottom',
-          scrub: isMobileViewport ? 0.2 : 0.3,
+          scrub: isMobileViewport ? true : 0.3,
           invalidateOnRefresh: true,
         },
       });

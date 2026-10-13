@@ -18,6 +18,8 @@ import { startSmoothScroll } from './lib/smoothScroll';
 import { SiteCursor } from './components/ui/SiteCursor';
 
 gsap.registerPlugin(ScrollTrigger);
+// Browser toolbar changes do not alter the mobile scene's stable svh height.
+ScrollTrigger.config({ ignoreMobileResize: true });
 
 if (import.meta.env.DEV) {
   // Companion to `__viewportStage`: lets a scroll timeline be inspected and
