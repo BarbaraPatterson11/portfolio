@@ -2,14 +2,30 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- On phones this is rewritten to the mobile canvas width (see src/lib/viewportStage.ts)
+         so every device renders the exact same composition. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Frank Glen Martin | Ecommerce Virtual Assistant</title>
     <meta name="description" content="Ecommerce Virtual Assistant specializing in product listings, cross-listing, product research, SEO optimization, inventory updates, order support, product data management, and store operations for eBay, Shopify, Amazon, Poshmark, and other ecommerce platforms." />
+    <link rel="preload" as="image" href="/portfolio/frank-profile.webp" fetchpriority="high" />
+
+    <!-- Webfonts. Primary families: Archivo (display/headings) and Geist Mono
+         (kickers/labels/counters), matching the brutalist typography system from jeffmilanes.com.
+         Also retaining Instrument Sans (body), Montserrat (UI), Oswald, and Playfair Display. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/portfolio/assets/index-B7RfoML5.js"></script>
-    <link rel="stylesheet" crossorigin href="/portfolio/assets/index-B04eLqeB.css">
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400..900;1,400..900&family=Geist+Mono:wght@400..700&family=Instrument+Sans:wght@400..700&family=Montserrat:wght@400..700&family=Oswald:wght@400..700&family=Playfair+Display:ital,wght@0,400..900;1,400..700&display=swap" />
+    <link rel="stylesheet" media="print" onload="this.media='all';this.onload=null" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400..900;1,400..900&family=Geist+Mono:wght@400..700&family=Instrument+Sans:wght@400..700&family=Montserrat:wght@400..700&family=Oswald:wght@400..700&family=Playfair+Display:ital,wght@0,400..900;1,400..700&display=swap" />
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400..900;1,400..900&family=Geist+Mono:wght@400..700&family=Instrument+Sans:wght@400..700&family=Montserrat:wght@400..700&family=Oswald:wght@400..700&family=Playfair+Display:ital,wght@0,400..900;1,400..700&display=swap" />
+    </noscript>
+    <script type="module" crossorigin src="/portfolio/assets/index-DoIVUpKi.js"></script>
+    <link rel="modulepreload" crossorigin href="/portfolio/assets/rolldown-runtime-Cyuzqnbw.js">
+    <link rel="modulepreload" crossorigin href="/portfolio/assets/motion-C0rdA2iI.js">
+    <link rel="modulepreload" crossorigin href="/portfolio/assets/vendor-DIprznxA.js">
+    <link rel="modulepreload" crossorigin href="/portfolio/assets/gsap-B2JeSRMT.js">
+    <link rel="modulepreload" crossorigin href="/portfolio/assets/react-C9x_mbYn.js">
+    <link rel="stylesheet" crossorigin href="/portfolio/assets/index-RR6EJoyy.css">
   </head>
   <body>
     <div id="root"></div>
