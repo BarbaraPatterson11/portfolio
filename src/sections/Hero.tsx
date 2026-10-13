@@ -28,6 +28,8 @@ export const Hero: React.FC<HeroProps> = ({ isLoaded }) => {
   const aboutRef = useRef<HTMLDivElement>(null);
   const readableRef = useRef<HTMLDivElement>(null);
   const workflowTriggerRef = useRef<ReturnType<typeof ScrollTrigger.create> | null>(null);
+  const { mode: canvasMode } = useViewport();
+  const isMobileViewport = canvasMode === 'mobile';
   const portraitIntroControls = useAnimationControls();
   const [workflowState, setWorkflowState] = useState(() => getWorkflowState(0));
   const commitWorkflow = useCallback((progress: number) => {
@@ -35,12 +37,13 @@ export const Hero: React.FC<HeroProps> = ({ isLoaded }) => {
     setWorkflowState(previous => {
       const sameNodes = WORKFLOW_NODES.every(node => nodeConnected(node, previous) === nodeConnected(node, next));
       const sameLoop = next.activePhase !== 5 || Math.round(previous.phaseProgress * 100) === Math.round(next.phaseProgress * 100);
+      // Small touch/scroll corrections at an arrival boundary must not restart
+      // the same light and ripple repeatedly. A deliberate reverse still works.
+      if (isMobileViewport && !sameNodes && Math.abs(next.progress - previous.progress) < .003) return previous;
       return previous.activePhase === next.activePhase && sameNodes && sameLoop ? previous : next;
     });
-  }, []);
+  }, [isMobileViewport]);
   const reducedMotion = useReducedMotion();
-  const { mode: canvasMode } = useViewport();
-  const isMobileViewport = canvasMode === 'mobile';
   const readableWorkflow = !!reducedMotion;
   const activePhase = WORKFLOW_PHASES[workflowState.activePhase];
   const ease = [0.16, 1, 0.3, 1] as const;
@@ -150,7 +153,11 @@ export const Hero: React.FC<HeroProps> = ({ isLoaded }) => {
           trigger: workflowSceneRef.current,
           start: 'top top',
           end: 'bottom bottom',
-          scrub: isMobileViewport ? true : 0.3,
+          pin: isMobileViewport ? workflowSceneRef.current?.querySelector<HTMLElement>('.workflow-scene') : false,
+          pinSpacing: false,
+          pinType: 'fixed',
+          anticipatePin: 1,
+          scrub: 0.3,
           invalidateOnRefresh: true,
         },
       });
@@ -261,7 +268,7 @@ export const Hero: React.FC<HeroProps> = ({ isLoaded }) => {
                 </div>
                 <p className="hero-reference-lede">
                   Product listings, store management, CRO and UI/UX design.
-                  From setup to everyday operations.
+                  {!isMobileViewport && ' From setup to everyday operations.'}
                 </p>
               </EditableElement>
             </div>

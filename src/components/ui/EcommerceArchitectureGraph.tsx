@@ -9,17 +9,8 @@ export const EcommerceArchitectureGraph: React.FC<{ state: WorkflowState }> = ({
   const compact = useIsMobileCanvas();
   const svgRef = useRef<SVGSVGElement>(null);
   const [widths, setWidths] = useState<Record<string,number>>({});
-  const [compactHeight, setCompactHeight] = useState(422);
-  useLayoutEffect(() => {
-    const svg = svgRef.current;
-    if (!compact || !svg) return;
-    const observer = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect;
-      if (width > 0) setCompactHeight(Math.max(342, Math.round(height * 372 / width)));
-    });
-    observer.observe(svg);
-    return () => observer.disconnect();
-  }, [compact]);
+  // One fixed diagram. Never change its coordinate system during scrolling.
+  const compactHeight = 480;
   useLayoutEffect(() => {
     let cancelled = false;
     const measure = () => {
@@ -60,7 +51,7 @@ export const EcommerceArchitectureGraph: React.FC<{ state: WorkflowState }> = ({
         return <g key={`${curve.from}-${curve.to}`} data-connection={index} data-from={curve.from} data-to={curve.to} data-connected={draw===1} data-draw={draw.toFixed(3)} data-owner-phase={curve.phase}>
           <path d={curve.d} className="workflow-path-base" />
           <path d={curve.d} pathLength="1" className="workflow-path" style={{strokeDashoffset:1-draw}} />
-          {!reducedMotion && draw === 1 && <>
+          {!reducedMotion && !compact && draw === 1 && <>
             <path d={curve.d} className="workflow-flow" />
             <circle r="2.8" className="workflow-packet"><animateMotion dur="2.6s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear" path={curve.d} /></circle>
             {!compact && <circle r="2.2" className="workflow-packet workflow-packet-back"><animateMotion dur="3.1s" begin="0.8s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear" path={curve.d} /></circle>}
@@ -70,7 +61,7 @@ export const EcommerceArchitectureGraph: React.FC<{ state: WorkflowState }> = ({
       <g data-feedback-loop data-draw={loopDraw.toFixed(3)}>
         <path d={loop} className="workflow-path-base" />
         <path d={loop} className="workflow-path workflow-feedback" pathLength="1" markerEnd={loopDraw>=.999?'url(#workflow-arrow)':undefined} style={{strokeDashoffset:1-loopDraw,opacity:.6}} />
-        {loopDraw>=.999 && !reducedMotion && <circle r="2.6" fill="white"><animateMotion dur="5s" repeatCount="indefinite" path={loop} /></circle>}
+        {loopDraw>=.999 && !reducedMotion && !compact && <circle r="2.6" fill="white"><animateMotion dur="5s" repeatCount="indefinite" path={loop} /></circle>}
         {!compact && <text x="930" y="385" transform="rotate(-90 930 385)" className="workflow-loop-label" opacity={loopDraw*.55}>LEARN · REPRIORITIZE · IMPROVE</text>}
       </g>
       {nodes.map(node => {
@@ -92,6 +83,7 @@ export const EcommerceArchitectureGraph: React.FC<{ state: WorkflowState }> = ({
               '--wave-top-end': `${-20 - waveSpread}px`,
               '--wave-height-end': `${40 + waveSpread * 2}px`,
               '--wave-radius-end': `${20 + waveSpread}px`,
+              '--wave-scale-x': (width + 16) / width,
             } as React.CSSProperties}
             vectorEffect="non-scaling-stroke"
             aria-hidden="true" data-ripple-for={node.id} />

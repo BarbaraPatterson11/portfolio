@@ -101,18 +101,10 @@ const layoutsEqual = (expected: LayoutConfig, actual: unknown): actual is Layout
 /**
  * The layout to render on the very first frame — nothing is awaited.
  *
- * Which copy wins depends on which one CAN be newer. Under `npm run dev` a save
- * writes the file, so the file is by definition the freshest and localStorage is
- * ignored entirely (without this a hand-edit to layout.json was invisible on the
- * one machine that can actually save it). Off the dev server nothing can write
- * the file, so an edit made in this browser is the newest thing available.
+ * The published layout is authoritative. The public editor is no longer
+ * mounted, so an old browser-specific draft must not override newer releases.
  */
 function initialLayout(): LayoutConfig {
-  if (import.meta.env.DEV) return SAVED_LAYOUT;
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) return { ...SAVED_LAYOUT, ...JSON.parse(raw) };
-  } catch { /* corrupt storage — the built-in layout stands */ }
   return SAVED_LAYOUT;
 }
 

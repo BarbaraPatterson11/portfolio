@@ -201,7 +201,7 @@ const computeState = (): ViewportState => {
 
   // The canvas fills the window edge to edge — width decides the scale and
   // nothing else.
-  const zoom = Math.round(
+  const zoom = mode === 'mobile' ? 1 : Math.round(
     Math.max(MIN_ZOOM, screenWidth / design.width) * ZOOM_PRECISION,
   ) / ZOOM_PRECISION;
 
@@ -282,6 +282,10 @@ const applyToDocument = (next: ViewportState) => {
 
   /* Overscan a `.canvas-box` applies to fill a tall window. */
   root.style.setProperty('--hero-fill', String(next.heroFill));
+  // Hero typography follows the reference's native CSS pixel sizes even when
+  // the browser scales our 372px phone canvas to a narrower or wider handset.
+  const nativeScale = next.mode === 'mobile' ? (window.visualViewport?.scale || 1) : 1;
+  root.style.setProperty('--hero-native-px', `${1 / nativeScale}px`);
 };
 
 const hasChanged = (a: ViewportState, b: ViewportState) =>
