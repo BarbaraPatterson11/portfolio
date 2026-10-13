@@ -7,6 +7,21 @@
 @import "tailwindcss";
 @import "lenis/dist/lenis.css";
 
+@font-face {
+  font-family: 'Portfolio Archivo';
+  src: url('/fonts/archivo-latin.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Portfolio Geist Mono';
+  src: url('/fonts/geist-mono-latin.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
+
 .site-cursor { display: none; }
 @media (hover: hover) and (pointer: fine) {
   html.has-site-cursor, html.has-site-cursor * { cursor: none !important; }
@@ -124,12 +139,12 @@
   --color-border-light: rgba(30, 30, 30, 0.06);
 
   /* Typography — Brutalist Editorial System (inspired by jeffmilanes.com) */
-  --font-display: 'Archivo', sans-serif;
+  --font-display: 'Portfolio Archivo', 'Archivo', sans-serif;
   --font-heading: 'Archivo', sans-serif;
-  --font-body: 'Archivo', sans-serif;
+  --font-body: 'Portfolio Archivo', 'Archivo', sans-serif;
   --font-ui: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --font-archivo: 'Archivo', sans-serif;
-  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-mono: 'Portfolio Geist Mono', 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* Width-based breakpoints are deliberately removed. Layout must never change
      with the window size — see the canvas variants below. */
@@ -214,6 +229,7 @@
   margin-inline: auto;
 }
 [data-canvas="mobile"] .viewport-stage { zoom: 1; }
+html[data-canvas="mobile"] { scrollbar-gutter: auto; }
 
 /* ------------------------------------------------------------
    Canvas box — a fixed design-w x design-h frame that holds a
@@ -462,23 +478,7 @@
       text-shadow: 0 2px 12px rgba(4, 8, 16, 0.7), 0 1px 2px rgba(4, 8, 16, 0.9);
     }
 
-    /* The About state is the whole second screenful on a phone, so it is sized
-       to USE that screenful: the panel takes almost the full canvas and every
-       block inside is stepped up to match. The type scale below was measured
-       against the 832 canvas — content lands at ~700 of the 770 design px the
-       insets leave, so it fills the screen without pushing anything out of the
-       safe band. Desktop is untouched: every value here is inside
-       [data-canvas="mobile"]. */
-    .hero-about-panel {
-      top: 0 !important;
-      left: 0 !important;
-      right: 0 !important;
-      bottom: 0 !important;
-      padding: clamp(70px, calc(0.11 * var(--screen-h)), 90px) 20px 70px !important;
-      max-width: none;
-      z-index: 31 !important;
-      overflow-y: hidden !important;
-    }
+    /* The current workflow panel is sized by its scene rules below. */
   }
 
   /* The old 599px / 360px / 600–809px tiers are gone: the mobile canvas is
@@ -1135,7 +1135,7 @@
 [data-canvas="mobile"] .journey-kicker { font: 11px/1.5 var(--font-mono); letter-spacing: 2px; }
 [data-canvas="mobile"] .journey-stage { margin-top: 0; font-size: 10px; letter-spacing: 1.5px; }
 [data-canvas="mobile"] .journey-heading { margin-top: 12px; font-size: 19px; line-height: 1.2; }
-[data-canvas="mobile"] .journey-phase-copy { grid-column: 1 / -1; height: 120px; min-height: 120px; }
+[data-canvas="mobile"] .journey-phase-copy { grid-column: 1 / -1; height: 88px; min-height: 88px; }
 [data-canvas="mobile"] .journey-phase-copy .journey-copy { margin-top: 8px; font-size: 13px; line-height: 1.5; min-height: 39px; }
 [data-canvas="mobile"] .journey-phase-copy .journey-proof { margin-top: 28px; padding-top: 18px; min-height: 0; font-size: 12px; line-height: 1.65; }
 [data-canvas="mobile"] .journey-audit-intro { font-size: 11px; }
@@ -1150,15 +1150,15 @@
 [data-canvas="mobile"] .workflow-path-base { stroke: #ffffff35; }
 [data-canvas="mobile"] .journey-backdrop svg { opacity: .35; }
 [data-canvas="mobile"] .journey-footer { bottom: 16px; font-size: 8px; }
-[data-canvas="mobile"] .workflow-chapter { height: calc(4.4 * 100lvh); }
-[data-canvas="mobile"] .workflow-scene { position: relative; height: 100lvh; isolation: isolate; backface-visibility: hidden; }
+[data-canvas="mobile"] .workflow-chapter { height: calc(4.4 * 100svh); }
+[data-canvas="mobile"] .workflow-scene { position: sticky; top: 0; height: 100svh; isolation: isolate; }
 [data-canvas="mobile"] .journey-grid { height: 100%; gap: 12px; }
-[data-canvas="mobile"] .journey-system { flex: 1; min-height: 0; width: calc(100% + 20px); margin-inline: -10px; }
+[data-canvas="mobile"] .journey-system { flex: 1; min-height: 0; width: 100%; margin-inline: 0; }
 [data-canvas="mobile"] .client-workflow-graph { height: 100%; }
-[data-canvas="mobile"] .workflow-path { transition-duration: .35s; }
+[data-canvas="mobile"] .workflow-path { stroke-width: 1.4; transition-duration: .9s; }
 [data-canvas="mobile"] .workflow-node-glow { filter: none; stroke-width: 2; }
 [data-canvas="mobile"] .workflow-node[data-connected="true"] circle { animation: none; }
-[data-canvas="mobile"] [data-connection][data-connected="true"] .workflow-packet { transition-delay: .35s; }
+[data-canvas="mobile"] [data-connection][data-connected="true"] .workflow-packet { transition-delay: .9s; }
 [data-canvas="mobile"] .workflow-flow { animation: none; }
 [data-canvas="mobile"] .workflow-node[data-connected="true"] .workflow-node-wave { animation-name: workflow-mobile-halo; }
 @keyframes workflow-mobile-halo {
@@ -1210,7 +1210,7 @@
 [data-canvas="mobile"] .contact-footer > p:first-child { font-size: 28px !important; line-height: .9 !important; }
 [data-canvas="mobile"] .contact-footer > p:last-child { max-width: 290px; font-size: 9px; line-height: 1.6; letter-spacing: 1.6px; }
 @media (max-height: 720px) {
-  [data-canvas="mobile"] .journey-phase-copy { min-height: 100px; }
+  [data-canvas="mobile"] .journey-phase-copy { min-height: 88px; }
   [data-canvas="mobile"] #skills { padding-top: 82px; padding-bottom: 72px; }
   [data-canvas="mobile"] .skills-mobile-accordion { margin-top: 22px; }
   [data-canvas="mobile"] .skills-mobile-trigger { min-height: 50px; padding-block: 9px; }
@@ -1250,7 +1250,7 @@
 }
 .hero-reference-name {
   margin: 0;
-  font-family: 'Archivo', sans-serif;
+  font-family: var(--font-display);
   font-size: 148px;
   font-weight: 800;
   line-height: .78;
@@ -1272,13 +1272,13 @@
   color: #aaa;
 }
 .hero-reference-specialization { margin-top: 32px; font-size: 38px; }
-.hero-typewriter { position: relative; font-family: 'Archivo', sans-serif; font-weight: 800; line-height: 1.1; letter-spacing: -.05em; color: white; }
+.hero-typewriter { position: relative; font-family: var(--font-display); font-weight: 800; line-height: 1.1; letter-spacing: -.05em; color: white; }
 .hero-typewriter-sizer { display: grid; visibility: hidden; pointer-events: none; }
 .hero-typewriter-sizer > span { grid-area: 1 / 1; }
 .hero-typewriter-live { position: absolute; inset: 0; }
 .hero-typewriter-caret { display: inline-block; width: 2px; height: .8em; margin-left: 3px; background: currentColor; vertical-align: -.02em; animation: hero-caret-blink 1s steps(1, end) infinite; }
-.hero-reference-lede { margin-top: 20px; max-width: 460px; font: 400 15.2px/1.55 'Archivo', sans-serif; letter-spacing: -.02em; color: #aaa; }
-.hero-scroll-story { position: absolute; z-index: 40; left: 50%; bottom: 36px; display: inline-flex; align-items: center; gap: 11.2px; transform: translateX(-50%); font: 11px/1.5 var(--font-mono); letter-spacing: .22em; text-transform: uppercase; color: #aaa; transition: color .2s; }
+.hero-reference-lede { margin-top: 20px; max-width: 460px; font: 400 15.2px/1.55 var(--font-body); letter-spacing: -.02em; color: #aaa; }
+.hero-scroll-story { position: absolute; z-index: 40; left: 50%; bottom: 36px; display: inline-flex; align-items: center; width: max-content; white-space: nowrap; gap: 11.2px; transform: translateX(-50%); font: 11px/1.5 var(--font-mono); letter-spacing: .22em; text-transform: uppercase; color: #aaa; transition: color .2s; }
 .hero-scroll-story:hover { color: white; }
 .hero-scroll-story:focus-visible { outline: 1px solid white; outline-offset: 6px; }
 .hero-scroll-chevrons { display: flex; flex-direction: column; align-items: center; gap: 1.92px; }
@@ -1286,18 +1286,21 @@
 .hero-scroll-chevrons i:last-child { animation-delay: .18s; }
 @keyframes hero-caret-blink { 50% { opacity: 0; } }
 @keyframes hero-scroll-chevron { 0%, 100% { opacity: .2; transform: rotate(45deg) translate(0, 0); } 45% { opacity: 1; transform: rotate(45deg) translate(1.92px, 1.92px); } }
-[data-canvas="mobile"] .hero-reference-composition.canvas-box { width: 372px; height: 100%; transform: none; }
-[data-canvas="mobile"] .hero-reference-portrait { left: 0; top: calc(100 * var(--hero-native-px, 1px)); width: 372px; height: calc(58% - 20 * var(--hero-native-px, 1px)); mask-image: linear-gradient(to bottom, #000 64%, transparent 96%); }
+[data-canvas="mobile"] .hero-page { height: 100svh; min-height: 100svh; }
+[data-canvas="mobile"] .hero-reference-composition.canvas-box { position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 100svh; inset: auto; transform: none; }
+[data-canvas="mobile"] .hero-reference-portrait { position: relative; flex: 1; min-height: 0; left: 0; top: 0; width: 100%; padding-top: 100px; margin-bottom: -18svh; box-sizing: border-box; mask-image: linear-gradient(to bottom, #000 64%, transparent 96%); }
 [data-canvas="mobile"] .hero-reference-image { object-position: center; }
-[data-canvas="mobile"] .hero-reference-copy { left: calc(20 * var(--hero-native-px, 1px)); top: auto; bottom: calc(88 * var(--hero-native-px, 1px)); width: calc(100% - 40 * var(--hero-native-px, 1px)); text-align: center; }
-[data-canvas="mobile"] .hero-reference-name { font-size: calc((var(--design-w) - 40 * var(--hero-native-px, 1px)) / 6.6) !important; font-weight: 800; line-height: .78; letter-spacing: -.07em; }
+[data-canvas="mobile"] .hero-reference-copy { position: relative; flex: none; inset: auto; box-sizing: border-box; width: 100%; padding: 32px 20px 88px; text-align: center; background: linear-gradient(transparent, #000 42%); }
+[data-canvas="mobile"] .hero-reference-name { font-size: clamp(34.4px, calc((100vw - 40px) / 6.6), 57.6px) !important; font-weight: 800 !important; line-height: .78 !important; letter-spacing: -.07em !important; }
+[data-canvas="mobile"] .hero-name-line { padding-inline: .08em; }
 [data-canvas="mobile"] .hero-reference-role-wrap { margin-top: calc(32 * var(--hero-native-px, 1px)); }
-[data-canvas="mobile"] .hero-reference-role { font-size: calc(11 * var(--hero-native-px, 1px)) !important; letter-spacing: calc(2.42 * var(--hero-native-px, 1px)) !important; line-height: 1.5; }
+[data-canvas="mobile"] .hero-reference-role { font-size: 11px !important; letter-spacing: 2.42px !important; line-height: 1.5 !important; }
 [data-canvas="mobile"] .hero-reference-role span { display: block; }
 [data-canvas="mobile"] .hero-reference-specialization { margin-top: calc(32 * var(--hero-native-px, 1px)); }
 [data-canvas="mobile"] .hero-typewriter { font-size: calc(22.4 * var(--hero-native-px, 1px)); line-height: .78; letter-spacing: -.07em; }
+[data-canvas="mobile"] .hero-typewriter-mobile { white-space: nowrap; }
 [data-canvas="mobile"] .hero-typewriter-caret { width: .08em; height: .85em; margin-left: .08em; vertical-align: -.05em; }
-[data-canvas="mobile"] .hero-reference-lede { margin-top: calc(20 * var(--hero-native-px, 1px)); font-family: 'Archivo', sans-serif; font-size: calc(15.2 * var(--hero-native-px, 1px)); line-height: 1.55; letter-spacing: calc(-.32 * var(--hero-native-px, 1px)); }
+[data-canvas="mobile"] .hero-reference-lede { margin: 20px auto 0; max-width: 352px; font-family: var(--font-body); font-size: 15.2px; line-height: 1.55; letter-spacing: -.32px; }
 [data-canvas="mobile"] .hero-scroll-story { bottom: calc(28 * var(--hero-native-px, 1px)); font-size: calc(11 * var(--hero-native-px, 1px)); letter-spacing: calc(2.42 * var(--hero-native-px, 1px)); gap: calc(11.2 * var(--hero-native-px, 1px)); }
 @media (prefers-reduced-motion: reduce) {
   .hero-typewriter-caret, .hero-scroll-chevrons i { animation: none; }

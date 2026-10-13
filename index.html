@@ -2,12 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- On phones this is rewritten to the mobile canvas width (see src/lib/viewportStage.ts)
-         so every device renders the exact same composition. -->
+    <!-- Native phone pixels keep text and sticky scenes stable while scrolling. -->
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Frank Glen Martin | Ecommerce Virtual Assistant</title>
     <meta name="description" content="Ecommerce Virtual Assistant specializing in product listings, cross-listing, product research, SEO optimization, inventory updates, order support, product data management, and store operations for eBay, Shopify, Amazon, Poshmark, and other ecommerce platforms." />
     <link rel="preload" as="image" href="%BASE_URL%frank-profile.webp" fetchpriority="high" />
+    <link rel="preload" as="font" href="%BASE_URL%fonts/archivo-latin.woff2" type="font/woff2" crossorigin />
+    <link rel="preload" as="font" href="%BASE_URL%fonts/geist-mono-latin.woff2" type="font/woff2" crossorigin />
 
     <!-- Webfonts. Primary families: Archivo (display/headings) and Geist Mono
          (kickers/labels/counters), matching the brutalist typography system from jeffmilanes.com.

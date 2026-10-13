@@ -137,20 +137,12 @@ export interface ViewportState {
 const isBrowser = typeof window !== 'undefined';
 
 /**
- * The canvas is picked from the DEVICE, never from the window size, so
- * shrinking or restoring a desktop window keeps the identical desktop
- * composition — which is the entire point of the stage.
- *
- * There is no override. To see the mobile canvas from a desktop, use the
- * browser's own device emulation (DevTools → device toolbar): it reports the
- * handset's `screen` metrics and a coarse pointer, so the checks below pick
- * `mobile` exactly the way a real phone does — same canvas, same viewport meta,
- * same scale. An emulator built into the page could only ever approximate that,
- * and when its guess at a phone's height was wrong the editor and Frank's
- * actual phone disagreed about what fits.
+ * A phone or a viewport below the reference's 768px breakpoint uses the native
+ * mobile layout. Larger desktop windows retain the scaled design canvas.
  */
 const detectMode = (): CanvasMode => {
   if (!isBrowser) return 'desktop';
+  if (window.innerWidth < 768) return 'mobile';
 
   // `screen` is the physical display and stays put while the window is
   // resized. It reports 0 in a few embedded/headless contexts, hence the
@@ -220,7 +212,7 @@ const computeState = (): ViewportState => {
   return {
     mode,
     zoom,
-    designWidth: design.width,
+    designWidth: mode === 'mobile' ? screenWidth : design.width,
     designHeight: design.height,
     stageHeight,
     heroFill,
@@ -236,18 +228,14 @@ let state: ViewportState = computeState();
 const listeners = new Set<(next: ViewportState) => void>();
 
 /**
- * On a real phone the canvas is scaled by the browser itself via the viewport
- * meta tag rather than CSS zoom. It is the most reliable path on mobile — iOS
- * Safari in particular has a long history of quirks with `position: fixed`
- * inside a zoomed subtree — and it leaves the CSS zoom at exactly 1.
+ * Use native CSS pixels on phones. A fixed viewport width makes the browser
+ * rescale fixed/sticky positions and text, especially as its toolbar moves.
  */
-const applyViewportMeta = (next: ViewportState) => {
+const applyViewportMeta = () => {
   const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
   if (!meta) return;
 
-  const content = next.mode === 'mobile'
-    ? `width=${next.designWidth}, viewport-fit=cover`
-    : 'width=device-width, initial-scale=1, viewport-fit=cover';
+  const content = 'width=device-width, initial-scale=1, viewport-fit=cover';
 
   if (meta.content !== content) meta.content = content;
 };
@@ -256,7 +244,7 @@ const applyToDocument = (next: ViewportState) => {
   if (!isBrowser) return;
   const root = document.documentElement;
 
-  applyViewportMeta(next);
+  applyViewportMeta();
   root.dataset.canvas = next.mode;
 
   root.style.setProperty('--zoom', String(next.zoom));
@@ -282,10 +270,7 @@ const applyToDocument = (next: ViewportState) => {
 
   /* Overscan a `.canvas-box` applies to fill a tall window. */
   root.style.setProperty('--hero-fill', String(next.heroFill));
-  // Hero typography follows the reference's native CSS pixel sizes even when
-  // the browser scales our 372px phone canvas to a narrower or wider handset.
-  const nativeScale = next.mode === 'mobile' ? (window.visualViewport?.scale || 1) : 1;
-  root.style.setProperty('--hero-native-px', `${1 / nativeScale}px`);
+  root.style.setProperty('--hero-native-px', '1px');
 };
 
 const hasChanged = (a: ViewportState, b: ViewportState) =>

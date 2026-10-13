@@ -60,7 +60,7 @@ export const WORKFLOW_PHASES = [
   },
 ] as const;
 
-export interface WorkflowState { activePhase: number; progress: number; phaseProgress: number }
+export interface WorkflowState { activePhase: number; progress: number; phaseProgress: number; connectedMask?: number }
 export const clampProgress = (progress: number) => Number.isFinite(progress) ? Math.max(0, Math.min(1, progress)) : 0;
 
 /** One mapping governs the number, copy, group glow, and path drawing. */

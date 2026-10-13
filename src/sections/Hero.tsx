@@ -12,7 +12,7 @@ import { EcommerceArchitectureGraph } from '../components/ui/EcommerceArchitectu
 import { WorkflowPhaseCounter } from '../components/ui/WorkflowPhaseCounter';
 import { ShopifyWorkflowReadable } from '../components/ui/ShopifyWorkflowReadable';
 import { WORKFLOW_PHASES, getWorkflowState } from '../data/shopifyWorkflow';
-import { WORKFLOW_NODES, nodeConnected } from '../data/shopifyWorkflowDiagram';
+import { getStableWorkflowState } from '../data/shopifyWorkflowDiagram';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -33,16 +33,13 @@ export const Hero: React.FC<HeroProps> = ({ isLoaded }) => {
   const portraitIntroControls = useAnimationControls();
   const [workflowState, setWorkflowState] = useState(() => getWorkflowState(0));
   const commitWorkflow = useCallback((progress: number) => {
-    const next = getWorkflowState(progress);
     setWorkflowState(previous => {
-      const sameNodes = WORKFLOW_NODES.every(node => nodeConnected(node, previous) === nodeConnected(node, next));
+      const next = getStableWorkflowState(progress, previous);
+      const sameNodes = previous.connectedMask === next.connectedMask;
       const sameLoop = next.activePhase !== 5 || Math.round(previous.phaseProgress * 100) === Math.round(next.phaseProgress * 100);
-      // Small touch/scroll corrections at an arrival boundary must not restart
-      // the same light and ripple repeatedly. A deliberate reverse still works.
-      if (isMobileViewport && !sameNodes && Math.abs(next.progress - previous.progress) < .003) return previous;
       return previous.activePhase === next.activePhase && sameNodes && sameLoop ? previous : next;
     });
-  }, [isMobileViewport]);
+  }, []);
   const reducedMotion = useReducedMotion();
   const readableWorkflow = !!reducedMotion;
   const activePhase = WORKFLOW_PHASES[workflowState.activePhase];
@@ -145,7 +142,7 @@ export const Hero: React.FC<HeroProps> = ({ isLoaded }) => {
       // Hero and workflow adjoin in normal document flow. Only the workflow
       // pins; portrait and copy retain their opacity and scroll together.
       gsap.set(aboutRef.current, { autoAlpha: 1, pointerEvents: 'auto' });
-      gsap.set(aboutItems, { autoAlpha: 1, y: 0 });
+      gsap.set(aboutItems, { autoAlpha: 1, clearProps: 'transform' });
       gsap.set(portraitPoseRef.current, { x: 0, y: 0, scale: 1 });
       const workflowClock = { progress: 0 };
       const timeline = gsap.timeline({
@@ -153,10 +150,8 @@ export const Hero: React.FC<HeroProps> = ({ isLoaded }) => {
           trigger: workflowSceneRef.current,
           start: 'top top',
           end: 'bottom bottom',
-          pin: isMobileViewport ? workflowSceneRef.current?.querySelector<HTMLElement>('.workflow-scene') : false,
-          pinSpacing: false,
-          pinType: 'fixed',
-          anticipatePin: 1,
+          // CSS sticky owns the scene position. ScrollTrigger only measures
+          // progress, so a touch gesture cannot repin/retransform the text/SVG.
           scrub: 0.3,
           invalidateOnRefresh: true,
         },
@@ -322,13 +317,7 @@ export const Hero: React.FC<HeroProps> = ({ isLoaded }) => {
                   <div>
                     <h2 className="journey-heading">{activePhase.heading}</h2>
                     <p className="journey-copy">{activePhase.shortDescription}</p>
-                    {isMobileViewport ? (
-                      activePhase.leftDetails.length > 0 ? (
-                        <p className="journey-mobile-summary">Store audit · Data analysis · Customer insights · Strategic plan</p>
-                      ) : (
-                        <p className="journey-mobile-summary">{activePhase.areas.join(' · ')}</p>
-                      )
-                    ) : activePhase.leftDetails.length > 0 ? (
+                    {!isMobileViewport && (activePhase.leftDetails.length > 0 ? (
                       <div className="journey-audit-details" aria-label="Audit and planning priorities">
                         <p className="journey-audit-intro">{activePhase.description}</p>
                         <ul>
@@ -342,7 +331,7 @@ export const Hero: React.FC<HeroProps> = ({ isLoaded }) => {
                       </div>
                     ) : (
                       <p className="journey-proof">{activePhase.description}</p>
-                    )}
+                    ))}
                   </div>
                 </div>
               </div>
