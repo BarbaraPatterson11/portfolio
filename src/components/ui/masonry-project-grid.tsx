@@ -63,11 +63,11 @@ const landscapeShowcase: ProjectViewerData = {
       id: 'landscape-01',
       type: 'image',
       src: velvetMarketImage,
-      alt: 'Veloura ecommerce storefront homepage and product sections',
+      alt: 'Wanderlust (Veloura Market) storefront homepage and product sections',
       orientation: 'landscape',
-      name: 'Veloura Store',
-      link: velvetMarketImage,
-      linkLabel: 'Open full screenshot',
+      name: 'Wanderlust Store',
+      link: 'https://64xpb3nzvw8sxw8b-72918597785.shopifypreview.com/',
+      linkLabel: 'Explore Wanderlust preview',
     },
     {
       id: 'landscape-02',
@@ -145,7 +145,7 @@ export function MasonryProjectGrid() {
                   <ArrowUpRight className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover/project-title:translate-x-0.5 group-hover/project-title:-translate-y-0.5 sm:h-5 sm:w-5" aria-hidden="true" />
                 </span>
                 <span className="font-mono text-[8px] font-semibold uppercase tracking-[0.2em] text-white/75 transition-colors group-hover/project-title:text-white sm:text-[9px]">
-                  View full project
+                  {landscapePreview.id === 'landscape-01' ? 'Explore store preview' : 'View full project'}
                 </span>
     </>
   );
@@ -216,14 +216,14 @@ export function MasonryProjectGrid() {
               <ChevronRight className="h-5 w-5 transition-transform group-hover/next:translate-x-0.5" />
             </button>
             <div className="absolute inset-x-0 bottom-0 flex flex-col items-center px-16 pb-4 pt-8 text-center sm:px-20 sm:pb-6 sm:pt-20">
-              {landscapePreview.id === 'landscape-03' ? (
+              {landscapePreview.id === 'landscape-03' || landscapePreview.id === 'landscape-01' ? (
                 <a
                   href={landscapePreview.link}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={event => event.stopPropagation()}
                   className="group/project-title flex max-w-full flex-col items-center gap-2 rounded-lg px-3 py-1 text-white outline-none transition-colors hover:text-white/80 focus-visible:ring-2 focus-visible:ring-white"
-                  aria-label="Explore Vault Store live store"
+                  aria-label={`${landscapePreview.name} — ${landscapePreview.linkLabel ?? 'Open project'}`}
                 >
                   {projectTitle}
                 </a>
